@@ -45,7 +45,9 @@ const devices=new DeviceBroker(new MemoryDeviceProvider(),[4,17,18,27]);await de
 const secret=Bun.env.GLANSK_ADMIN_SECRET??(Bun.env.NODE_ENV==='production'?'':'glansk-dev');
 if(!secret)throw new Error('GLANSK_ADMIN_SECRET is required in production');
 const devOrigins=Bun.env.NODE_ENV==='production'?[]:['http://localhost:5173','http://127.0.0.1:5173'];
-const extraOrigins=(Bun.env.GLANSK_ALLOWED_ORIGINS??'').split(',').map(s=>s.trim()).filter(Boolean);
+const tunnelHost = Bun.env.CLOUDFLARE_TUNNEL_HOSTNAME ?? "glansk.sanshiro.qzz.io";
+const configuredOrigins = (Bun.env.GLANSK_ALLOWED_ORIGINS ?? '').split(',').map(s=>s.trim()).filter(Boolean);
+const extraOrigins = [`https://${tunnelHost}`, `http://${tunnelHost}`, ...configuredOrigins];
 const fetch=createSecureApp({canvases,runtime,widgetState:new ShowcaseWidgetState(),interactiveState,emitters,vault,packages,auth:new AuthService(secret),audit:new AuditLog(config.dataDirectory+'/audit.ndjson'),reset,backup:new BackupService(config.dataDirectory),devices,allowedOrigins:[`http://localhost:${config.port}`,`http://127.0.0.1:${config.port}`,...devOrigins,...extraOrigins]});
 const server = Bun.serve({ hostname: config.host, port: config.port, fetch, idleTimeout: 255 });
 process.on("unhandledRejection", (reason) => {
