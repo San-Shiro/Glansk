@@ -1,0 +1,31 @@
+/* Kiosk page shell only. The canvas + widget styles live in the shared
+ * stylesheet (/shared/canvas.css) so the display matches the admin editor. */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--canvas-bg, #020817);
+  color: var(--canvas-text, #e8f2ff);
+  font-family: Inter, "Segoe UI", sans-serif;
+}
+#stage {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+  background: var(--canvas-gradient, var(--canvas-bg, radial-gradient(circle at 20% 20%, #0b1b30, #07111f)));
+}
+.loading { padding: 30px; color: #8ca6bf; }
+
+html.preview-mode, body.preview-mode, html.preview-mode #stage {
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+@media (max-width: 800px) {
+  body:not(.preview-mode) { overflow: auto; }
+  #stage:not(.preview-mode) { min-height: 100vh; }
+}

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glansk.local/schemas/canvas/1",
+  "title": "Glansk Canvas v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "name", "logicalSize", "background", "widgets"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "logicalSize": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 320, "maximum": 7680 },
+        "height": { "type": "integer", "minimum": 240, "maximum": 4320 }
+      }
+    },
+    "background": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "widgets": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/widget" } }
+  },
+  "$defs": {
+    "widget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "packageId", "widgetId", "geometry", "config"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$" },
+        "packageId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "widgetId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "geometry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["x", "y", "width", "height", "zIndex"],
+          "properties": {
+            "x": { "type": "number", "minimum": 0 },
+            "y": { "type": "number", "minimum": 0 },
+            "width": { "type": "number", "exclusiveMinimum": 0 },
+            "height": { "type": "number", "exclusiveMinimum": 0 },
+            "zIndex": { "type": "number" }
+          }
+        },
+        "config": { "type": "object" }
+      }
+    }
+  }
+}

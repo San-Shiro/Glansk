@@ -1,0 +1,24 @@
+{
+  "name": "glansk",
+  "version": "0.1.1-alpha",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun --watch apps/server/src/main.ts",
+    "dev:studio": "cd apps/studio && bun run dev",
+    "start": "bun apps/server/src/main.ts",
+    "build": "bun scripts/build.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "bump": "bun scripts/bump-version.ts",
+    "validate": "bun run typecheck && bun run test && bun run build"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.0",
+    "typescript": "^5.7.0"
+  }
+}

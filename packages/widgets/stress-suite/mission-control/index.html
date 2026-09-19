@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reactor Mission Control</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    :root {
+      --bg-core: #090d1a;
+      --bg-card: rgba(13, 19, 36, 0.95);
+      --border-glow: rgba(99, 102, 241, 0.25);
+      --accent-cyan: #00f0ff;
+      --accent-blue: #38bdf8;
+      --accent-indigo: #6366f1;
+      --accent-purple: #8b5cf6;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --accent-emerald: #10b981;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg-core);
+      color: var(--text-main);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .control-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: radial-gradient(circle at 50% 20%, rgba(18, 27, 52, 0.95) 0%, rgba(9, 14, 26, 0.98) 100%);
+      border: 1px solid var(--border-glow);
+      border-radius: 16px;
+      padding: 14px 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      gap: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .control-panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 8px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .panel-title-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-lamp {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+      box-shadow: 0 0 10px var(--accent-emerald);
+      animation: pulseLamp 2s infinite alternate ease-in-out;
+    }
+
+    @keyframes pulseLamp {
+      from { opacity: 0.6; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1.1); }
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #fff;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    }
+
+    .tag {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.06em;
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-emerald);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.15);
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      padding: 10px 12px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .control-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .control-label-row label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .slider-val {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--accent-cyan);
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.4);
+    }
+
+    .tactile-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 10px;
+      border-radius: 5px;
+      background: linear-gradient(90deg, #00f0ff 0%, #8b5cf6 50%, #ef4444 100%);
+      outline: none;
+      cursor: pointer;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+      margin: 6px 0;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .tactile-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 3px solid #00f0ff;
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.8), 0 2px 6px rgba(0, 0, 0, 0.4);
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+
+    .tactile-slider::-webkit-slider-thumb:active {
+      transform: scale(1.15);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 1);
+    }
+
+    .tactile-slider::-moz-range-thumb {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 3px solid #00f0ff;
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.8);
+      cursor: pointer;
+    }
+
+    .button-matrix {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .btn {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 12px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      border-radius: 10px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      text-transform: uppercase;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-hazard {
+      background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+      color: #ffffff;
+      border-color: rgba(239, 68, 68, 0.4);
+      box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+    }
+
+    .btn-hazard:hover {
+      filter: brightness(1.1);
+    }
+
+    .btn-warn {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: #0b0f19;
+      font-weight: 900;
+      border-color: rgba(245, 158, 11, 0.4);
+      box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+    }
+
+    .btn-warn.active {
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+      color: #000;
+      box-shadow: 0 0 18px rgba(245, 158, 11, 0.8);
+      animation: pulseWarn 0.8s infinite alternate;
+    }
+
+    @keyframes pulseWarn {
+      from { filter: brightness(1); }
+      to { filter: brightness(1.25); }
+    }
+
+    .btn-cyan {
+      background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+      color: #ffffff;
+      border-color: rgba(14px, 165, 233, 0.4);
+      box-shadow: 0 4px 14px rgba(14, 165, 233, 0.3);
+    }
+
+    .btn-cyan:hover {
+      filter: brightness(1.1);
+    }
+
+    .btn-stress {
+      background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+      color: #ffffff;
+      border-color: rgba(139, 92, 246, 0.4);
+      box-shadow: 0 4px 14px rgba(139, 92, 246, 0.3);
+    }
+
+    .btn-stress.active {
+      background: linear-gradient(135deg, #c084fc 0%, #9333ea 100%);
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.8);
+      animation: pulseStress 0.4s infinite alternate;
+    }
+
+    @keyframes pulseStress {
+      from { filter: brightness(1); }
+      to { filter: brightness(1.3); }
+    }
+
+    .telemetry-box {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 8px 12px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .telemetry-header {
+      font-size: 9px;
+      color: var(--text-dim);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .telemetry-readout {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .bold-val {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: var(--accent-cyan);
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+
+    .state-tier-box {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      padding: 8px 12px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .tier-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .tier-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+      width: 95px;
+      text-transform: uppercase;
+    }
+
+    .btn-micro {
+      min-height: 32px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 6px;
+      background: #1e293b;
+      color: #f1f5f9;
+      border: 1px solid #334155;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-micro:hover {
+      background: #334155;
+      border-color: #475569;
+    }
+
+    .btn-micro:active {
+      transform: scale(0.96);
+    }
+
+    .micro-select {
+      min-height: 32px;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #1e293b;
+      color: #f1f5f9;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      outline: none;
+      cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .micro-select:focus {
+      border-color: var(--accent-cyan);
+    }
+
+    .tier-val {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-main);
+      text-align: right;
+      min-width: 60px;
+    }
+
+    .ok-text {
+      color: var(--accent-emerald);
+    }
+  </style>
+  
+</head>
+<body>
+  <div class="control-panel">
+    <header class="panel-header">
+      <div class="panel-title-group">
+        <span class="status-lamp" id="operatorLamp"></span>
+        <h2 class="panel-title" id="panelTitle">Mission Control</h2>
+      </div>
+      <div class="panel-tags">
+        <span class="tag" id="liveTag">LIVE BUS</span>
+      </div>
+    </header>
+
+    <!-- Speed Regulation Slider -->
+    <div class="control-group">
+      <div class="control-label-row">
+        <label for="speedSlider">TURBINE VELOCITY</label>
+        <span class="slider-val" id="sliderValDisplay">50%</span>
+      </div>
+      <input type="range" id="speedSlider" min="0" max="100" value="50" class="tactile-slider">
+    </div>
+
+    <!-- Main Tactile Action Buttons -->
+    <div class="button-matrix">
+      <button id="scramBtn" class="btn btn-hazard">⚠️ SCRAM HALT</button>
+      <button id="overdriveBtn" class="btn btn-warn">⚡ OVERDRIVE</button>
+      <button id="fetchBtn" class="btn btn-cyan">📡 EGRESS PING</button>
+      <button id="stressBtn" class="btn btn-stress">🌀 20Hz STRESS</button>
+    </div>
+
+    <!-- Live Telemetry Readout from Reactor -->
+    <div class="telemetry-box">
+      <div class="telemetry-header">FEEDBACK FROM REACTOR</div>
+      <div class="telemetry-readout">
+        <div>RPM: <span id="teleRpm" class="bold-val">--</span></div>
+        <div>TEMP: <span id="teleTemp" class="bold-val">--</span></div>
+        <div>STATUS: <span id="teleStatus" class="bold-val">--</span></div>
+      </div>
+    </div>
+
+    <!-- Three-Tier State Controller -->
+    <div class="state-tier-box">
+      <div class="tier-row">
+        <span class="tier-label">GLOBAL STATE</span>
+        <button id="incGlobalBtn" class="btn-micro">+100h Lifetime</button>
+        <span id="globalVal" class="tier-val">1200h</span>
+      </div>
+
+      <div class="tier-row">
+        <span class="tier-label">COOKIE STATE</span>
+        <select id="themeSelect" class="micro-select">
+          <option value="plasma-cyan">Plasma Cyan</option>
+          <option value="solar-gold">Solar Gold</option>
+          <option value="neon-magenta">Neon Magenta</option>
+        </select>
+        <span id="cookieSavedBadge" class="tier-val ok-text">SYNCED</span>
+      </div>
+
+      <div class="tier-row">
+        <span class="tier-label">SESSION STATE</span>
+        <button id="sessionPingBtn" class="btn-micro">Emit Ping</button>
+        <span id="sessionPingCount" class="tier-val">Pings: 0</span>
+      </div>
+    </div>
+  </div>
+
+  
+
+  
+
+  
+
+  
+
+  <script>
+    /* Glansk SDK */
+    // Glansk Widget SDK — canonical source.
+//
+// This file is the single authoritative implementation of the client-side SDK.
+// Because sandboxed iframes run with an opaque ("null") origin (sandbox="allow-scripts"
+// without allow-same-origin), they cannot import cross-origin or same-origin resources
+// at runtime. Each packaged widget therefore ships a verbatim copy of this file as
+// sdk.js in its own directory.
+//
+// When editing this file, update all copies:
+//   src/widgets/glansk.demo/aurora-metric/sdk.js
+//   src/widgets/glansk.demo/command-control/sdk.js
+//   src/widgets/glansk.demo/sdk-status/sdk.js
+//   src/widgets/glansk.demo/status-grid/sdk.js
+//   src/widgets/glansk.demo/telemetry-chart/sdk.js
+//   src/widgets/glansk.media/image-carousel/sdk.js
+//
+// API surface (resolved value of Glansk.connect()):
+//   widget.identity      — { instanceId, packageId, widgetId }
+//   widget.display       — { id, storageNamespace } | null
+//                          null when rendering in the admin editor preview.
+//                          storageNamespace is a deterministic, URL-safe key prefix
+//                          scoped to display × package × widget × instance, for use
+//                          with future host-brokered per-screen storage.
+//                          NOTE: localStorage/sessionStorage/cookies/IndexedDB are
+//                          unavailable in the null-origin sandbox — do not use them.
+//   widget.onConfig(fn)  — subscribe to config updates; returns unsubscribe fn
+//   widget.onDestroy(fn) — subscribe to destroy lifecycle; returns unsubscribe fn
+//   widget.reportReady() — signal iframe is ready to display
+//   widget.subscribe(channel, fn, opts?) — subscribe to a state channel; returns unsub fn
+//   widget.command(cmd, payload, correlationId?) — send a command; returns Promise
+//   widget.broadcast(topic, payload) — broadcast ephemeral event to canvas and screens
+//   widget.onNotification(topic, fn) — subscribe to broadcast events; returns unsub fn
+
+const PROTOCOL = 'glansk.widget.v1';
+let hostOrigin, identity, display, nonce, config, resolveConnect, destroyed = false;
+let connectTimer = null;
+const configListeners = new Set(), destroyListeners = new Set(), subscriptions = new Map(), commands = new Map(), notifications = new Map(), fetches = new Map();
+const storagePromises = new Map(), sharedListeners = new Map(), sharedCache = new Map(), sharedSaveTimers = new Map(), storageSaveTimers = new Map();
+const connected = new Promise(resolve => resolveConnect = resolve);
+
+const send = body => {
+  if (!destroyed) parent.postMessage({ protocol: PROTOCOL, ...(identity ? { instanceId: identity.instanceId, nonce } : {}), ...body }, hostOrigin || '*');
+};
+
+const sendConnect = () => {
+  if (!identity && !destroyed) send({ type: 'connect' });
+};
+
+addEventListener('message', event => {
+  if (event.source !== parent || !event.data || event.data.protocol !== PROTOCOL) return;
+  const data = event.data;
+
+  // Initial handshake from the host — accept only once, before identity is bound.
+  if (data.type === 'connected' && !identity) {
+    if (connectTimer) {
+      clearInterval(connectTimer);
+      connectTimer = null;
+    }
+    hostOrigin = event.origin;
+    identity = data.identity;
+    // display is present only when rendered from a named kiosk target.
+    // Admin editor previews intentionally omit it; expose null for consistent typing.
+    display = data.display ?? null;
+    nonce = data.nonce;
+    config = data.config;
+    resolveConnect(api);
+    for (const listener of configListeners) listener(config);
+    return;
+  }
+
+  // All subsequent messages must come from the same origin, source, identity, and nonce.
+  if (event.origin !== hostOrigin || !identity || data.instanceId !== identity.instanceId || data.nonce !== nonce) return;
+
+  if (data.type === 'config-update') {
+    config = data.config;
+    for (const listener of configListeners) listener(config);
+  }
+  if ((data.type === 'state' || data.type === 'state-error') && subscriptions.has(data.channel)) {
+    for (const listener of subscriptions.get(data.channel)) listener(data.delivery || { kind: 'error', channel: data.channel, error: data.error });
+  }
+  if (data.type === 'notification' && notifications.has(data.topic)) {
+    for (const listener of notifications.get(data.topic)) {
+      try { listener(data.payload, data.meta); } catch (e) { console.error(e); }
+    }
+  }
+  if (data.type === 'command-result' && commands.has(data.correlationId)) {
+    commands.get(data.correlationId)(data);
+    commands.delete(data.correlationId);
+  }
+  if (data.type === 'fetch-result' && fetches.has(data.correlationId)) {
+    fetches.get(data.correlationId)(data);
+    fetches.delete(data.correlationId);
+  }
+  if (data.type === 'storage-result' && storagePromises.has(data.correlationId)) {
+    storagePromises.get(data.correlationId)(data);
+    storagePromises.delete(data.correlationId);
+  }
+  if (data.type === 'shared-update' && typeof data.key === 'string') {
+    sharedCache.set(data.key, { value: data.value, revision: data.revision || 0 });
+    if (sharedListeners.has(data.key)) {
+      for (const listener of sharedListeners.get(data.key)) {
+        try { listener(data.value, data.meta || {}); } catch (e) { console.error(e); }
+      }
+    }
+  }
+  if (data.type === 'destroy' && !destroyed) {
+    destroyed = true;
+    if (connectTimer) {
+      clearInterval(connectTimer);
+      connectTimer = null;
+    }
+    for (const listener of destroyListeners) listener();
+    for (const t of sharedSaveTimers.values()) clearTimeout(t);
+    sharedSaveTimers.clear();
+    for (const t of storageSaveTimers.values()) clearTimeout(t);
+    storageSaveTimers.clear();
+    configListeners.clear();
+    destroyListeners.clear();
+    subscriptions.clear();
+    commands.clear();
+    notifications.clear();
+    fetches.clear();
+    storagePromises.clear();
+    sharedListeners.clear();
+    sharedCache.clear();
+  }
+});
+
+const api = {
+  /**
+   * The widget instance identity assigned by the host.
+   * { instanceId, packageId, widgetId }
+   */
+  get identity() { return identity; },
+
+  /**
+   * Display context for this widget, or null when running in the admin editor
+   * preview (which intentionally receives no display identity).
+   *
+   * When non-null:
+   *   display.id               — opaque identifier for the physical screen
+   *   display.storageNamespace — deterministic, URL-safe key prefix scoped to
+   *                              display × package × widget × instance, for
+   *                              future host-brokered per-screen storage.
+   *
+   * IMPORTANT: display identity is informational only. Do not use it to
+   * authorize actions; all authorization is enforced server-side.
+   */
+  get display() { return display; },
+
+  /** Subscribe to configuration updates from the host. Returns an unsubscribe function. */
+  onConfig(listener) {
+    configListeners.add(listener);
+    if (config !== undefined) listener(config);
+    return () => configListeners.delete(listener);
+  },
+
+  /** Subscribe to the destroy lifecycle event. Returns an unsubscribe function. */
+  onDestroy(listener) {
+    destroyListeners.add(listener);
+    return () => destroyListeners.delete(listener);
+  },
+
+  /** Signal to the host that the widget iframe has rendered and is ready to display. */
+  reportReady() { send({ type: 'ready' }); },
+
+  /**
+   * Subscribe to a state channel. `listener` is called with each delivery.
+   * Returns an unsubscribe function.
+   */
+  subscribe(channel, listener, options = {}) {
+    const listeners = subscriptions.get(channel) || new Set();
+    listeners.add(listener);
+    subscriptions.set(channel, listeners);
+    send({ type: 'subscribe', channel, fromRevision: options.fromRevision });
+    return () => {
+      listeners.delete(listener);
+      if (!listeners.size) { subscriptions.delete(channel); send({ type: 'unsubscribe', channel }); }
+    };
+  },
+
+  /**
+   * Send a host-declared command. Returns a Promise that resolves with the
+   * command result when the host replies.
+   */
+  command(command, payload, correlationId = crypto.randomUUID()) {
+    return new Promise(resolve => {
+      commands.set(correlationId, resolve);
+      send({ type: 'command', command, payload, correlationId });
+    });
+  },
+
+  /**
+   * Broadcast an ephemeral notification to other widgets on the canvas and across screens.
+   */
+  broadcast(topic, payload) {
+    send({ type: 'broadcast', topic, payload });
+  },
+
+  /**
+   * Subscribe to an ephemeral notification topic. Returns an unsubscribe function.
+   */
+  onNotification(topic, listener) {
+    const listeners = notifications.get(topic) || new Set();
+    listeners.add(listener);
+    notifications.set(topic, listeners);
+    send({ type: 'notify-subscribe', topic });
+    return () => {
+      listeners.delete(listener);
+      if (!listeners.size) {
+        notifications.delete(topic);
+        send({ type: 'notify-unsubscribe', topic });
+      }
+    };
+  },
+
+  /**
+   * Perform a secure, host-brokered fetch to an external API.
+   * Vault credentials ({{secret:<id>}}) are injected by the host.
+   */
+  fetch(url, options = {}) {
+    const correlationId = crypto.randomUUID();
+    return new Promise((resolve, reject) => {
+      fetches.set(correlationId, result => {
+        if (result.ok) {
+          const headersMap = new Map();
+          if (result.headers) {
+            for (const [k, v] of Object.entries(result.headers)) {
+              headersMap.set(k.toLowerCase(), v);
+            }
+          }
+          resolve({
+            ok: result.status >= 200 && result.status < 300,
+            status: result.status,
+            statusText: result.statusText,
+            headers: {
+              get: name => headersMap.get(name.toLowerCase()) ?? null,
+              has: name => headersMap.has(name.toLowerCase()),
+              entries: () => Array.from(headersMap.entries()),
+            },
+            text: async () => result.data ?? '',
+            json: async () => JSON.parse(result.data ?? 'null'),
+          });
+        } else {
+          const err = new Error(result.error?.message || 'Proxy fetch failed');
+          err.code = result.error?.code;
+          reject(err);
+        }
+      });
+      send({
+        type: 'fetch',
+        correlationId,
+        url,
+        method: options.method || 'GET',
+        headers: options.headers || {},
+        body: options.body,
+        timeoutMs: options.timeoutMs,
+      });
+    });
+  },
+
+  /**
+   * Client-scoped personal storage (sandbox-safe equivalent of localStorage).
+   * Persists on this browser profile across page refreshes under the client's ld_client_id cookie.
+   * Fresh / empty when opened in an incognito window or separate browser.
+   */
+  storage: {
+    get(key, defaultValue = undefined) {
+      const correlationId = crypto.randomUUID();
+      return new Promise(resolve => {
+        storagePromises.set(correlationId, (res) => {
+          if (res && res.ok && res.value !== null && res.value !== undefined) {
+            resolve(res.value);
+          } else {
+            resolve(defaultValue);
+          }
+        });
+        send({ type: 'storage-get', key, correlationId });
+      });
+    },
+
+    set(key, value, debounceMs = 150) {
+      return new Promise(resolve => {
+        const correlationId = crypto.randomUUID();
+        storagePromises.set(correlationId, () => resolve());
+        const flush = () => {
+          storageSaveTimers.delete(key);
+          send({ type: 'storage-set', key, value, correlationId });
+        };
+        if (debounceMs <= 0) {
+          if (storageSaveTimers.has(key)) {
+            clearTimeout(storageSaveTimers.get(key));
+            storageSaveTimers.delete(key);
+          }
+          flush();
+        } else {
+          if (storageSaveTimers.has(key)) {
+            clearTimeout(storageSaveTimers.get(key));
+          }
+          storageSaveTimers.set(key, setTimeout(flush, debounceMs));
+        }
+      });
+    },
+
+    delete(key) {
+      const correlationId = crypto.randomUUID();
+      return new Promise(resolve => {
+        storagePromises.set(correlationId, () => resolve());
+        send({ type: 'storage-delete', key, correlationId });
+      });
+    },
+  },
+
+  /**
+   * Real-time cross-kiosk shared state.
+   * Persists to server disk and syncs live across all connected screens and kiosks (<50ms via SSE).
+   */
+  shared: {
+    get(key, fallback = undefined) {
+      const record = sharedCache.get(key);
+      return record !== undefined ? record.value : fallback;
+    },
+
+    set(key, value, options = {}) {
+      const debounceMs = options.debounceMs ?? 150;
+      sharedCache.set(key, { value, revision: (sharedCache.get(key)?.revision || 0) + 1 });
+      const flush = () => {
+        sharedSaveTimers.delete(key);
+        send({ type: 'shared-set', key, value });
+      };
+      if (debounceMs <= 0) {
+        if (sharedSaveTimers.has(key)) {
+          clearTimeout(sharedSaveTimers.get(key));
+          sharedSaveTimers.delete(key);
+        }
+        flush();
+      } else {
+        if (sharedSaveTimers.has(key)) {
+          clearTimeout(sharedSaveTimers.get(key));
+        }
+        sharedSaveTimers.set(key, setTimeout(flush, debounceMs));
+      }
+    },
+
+    on(key, listener) {
+      let listeners = sharedListeners.get(key);
+      const isFirst = !listeners || listeners.size === 0;
+      if (!listeners) {
+        listeners = new Set();
+        sharedListeners.set(key, listeners);
+      }
+      listeners.add(listener);
+
+      if (isFirst) {
+        send({ type: 'shared-subscribe', key });
+      } else if (sharedCache.has(key)) {
+        try { listener(sharedCache.get(key).value, { initial: true }); } catch (e) { console.error(e); }
+      }
+
+      return () => {
+        listeners.delete(listener);
+        if (listeners.size === 0) {
+          sharedListeners.delete(key);
+          send({ type: 'shared-unsubscribe', key });
+        }
+      };
+    },
+
+    bind(key, options = {}) {
+      const defVal = options.default;
+      const debounceMs = options.debounceMs ?? 150;
+      if (!sharedCache.has(key) && defVal !== undefined) {
+        sharedCache.set(key, { value: defVal, revision: 0 });
+      }
+      if (options.onChange) {
+        this.on(key, options.onChange);
+      } else {
+        if (!sharedListeners.has(key)) {
+          sharedListeners.set(key, new Set());
+          send({ type: 'shared-subscribe', key });
+        }
+      }
+      return {
+        get: () => this.get(key, defVal),
+        set: (val) => this.set(key, val, { debounceMs }),
+        subscribe: (fn) => this.on(key, fn),
+      };
+    },
+  },
+
+  /**
+   * Unified reactive state handle helper.
+   * Supports 'session' (plain in-memory), 'cookie' (widget.storage), and 'global' (widget.shared).
+   */
+  state(key, options = {}) {
+    const scope = options.scope || 'global';
+    if (scope === 'session') {
+      let val = options.default;
+      const subs = new Set();
+      if (options.onChange) subs.add(options.onChange);
+      return {
+        get: () => val,
+        set: (v) => { val = v; for (const fn of subs) fn(val, { from: 'local' }); },
+        subscribe: (fn) => { subs.add(fn); fn(val, { from: 'initial' }); return () => subs.delete(fn); },
+      };
+    }
+    if (scope === 'cookie') {
+      let val = options.default;
+      const subs = new Set();
+      if (options.onChange) subs.add(options.onChange);
+      this.storage.get(key, options.default).then(fetched => {
+        if (fetched !== undefined && fetched !== null) {
+          val = fetched;
+          for (const fn of subs) fn(val, { from: 'initial' });
+        }
+      });
+      return {
+        get: () => val,
+        set: (v) => { val = v; for (const fn of subs) fn(val, { from: 'local' }); this.storage.set(key, v, options.debounceMs); },
+        subscribe: (fn) => { subs.add(fn); fn(val, { from: 'initial' }); return () => subs.delete(fn); },
+      };
+    }
+    return this.shared.bind(key, options);
+  },
+};
+
+globalThis.Glansk = {
+  /** Initiate the host handshake. Returns a Promise that resolves to the widget API. */
+  connect() {
+    sendConnect();
+    if (!connectTimer && !identity) {
+      connectTimer = setInterval(sendConnect, 200);
+    }
+    return connected;
+  },
+};
+
+
+    /* Mission Control */
+    (function () {
+  let widget = null;
+
+  const panelTitle = document.getElementById("panelTitle");
+  const speedSlider = document.getElementById("speedSlider");
+  const sliderValDisplay = document.getElementById("sliderValDisplay");
+  const scramBtn = document.getElementById("scramBtn");
+  const overdriveBtn = document.getElementById("overdriveBtn");
+  const fetchBtn = document.getElementById("fetchBtn");
+  const stressBtn = document.getElementById("stressBtn");
+
+  const teleRpm = document.getElementById("teleRpm");
+  const teleTemp = document.getElementById("teleTemp");
+  const teleStatus = document.getElementById("teleStatus");
+
+  const incGlobalBtn = document.getElementById("incGlobalBtn");
+  const globalVal = document.getElementById("globalVal");
+  const themeSelect = document.getElementById("themeSelect");
+  const cookieSavedBadge = document.getElementById("cookieSavedBadge");
+  const sessionPingBtn = document.getElementById("sessionPingBtn");
+  const sessionPingCount = document.getElementById("sessionPingCount");
+
+  let isScram = false;
+  let isOverdrive = false;
+  let isStressLoopRunning = false;
+  let stressInterval = null;
+  let stressAngle = 0;
+  let lifetimeHours = 1200;
+  let sessionPings = 0;
+
+  // 1. Slider Regulation
+  speedSlider.addEventListener("input", (e) => {
+    const val = Number(e.target.value);
+    sliderValDisplay.textContent = `${val}%`;
+    if (val > 0 && isScram) {
+      isScram = false;
+      scramBtn.style.boxShadow = "";
+      scramBtn.textContent = "⚠️ SCRAM HALT";
+      widget?.broadcast("reactor.scram", { active: false });
+    }
+    widget?.broadcast("reactor.speed", { speed: val });
+    widget?.shared.set("reactor_speed", val);
+  });
+
+  // 2. SCRAM Emergency Halt Toggle
+  scramBtn.addEventListener("click", () => {
+    isScram = !isScram;
+    if (isScram) {
+      speedSlider.value = "0";
+      sliderValDisplay.textContent = "0%";
+      scramBtn.style.boxShadow = "0 0 20px #ef4444";
+      scramBtn.textContent = "RESET SCRAM";
+      widget?.broadcast("reactor.speed", { speed: 0 });
+      widget?.shared.set("reactor_speed", 0);
+    } else {
+      scramBtn.style.boxShadow = "";
+      scramBtn.textContent = "⚠️ SCRAM HALT";
+      speedSlider.value = "50";
+      sliderValDisplay.textContent = "50%";
+      widget?.broadcast("reactor.speed", { speed: 50 });
+      widget?.shared.set("reactor_speed", 50);
+    }
+    widget?.broadcast("reactor.scram", { active: isScram });
+  });
+
+  // 3. Overdrive Toggle
+  overdriveBtn.addEventListener("click", () => {
+    isOverdrive = !isOverdrive;
+    overdriveBtn.classList.toggle("active", isOverdrive);
+    widget?.broadcast("reactor.overdrive", { active: isOverdrive });
+  });
+
+  // 4. Trigger Remote Egress Fetch
+  fetchBtn.addEventListener("click", () => {
+    fetchBtn.style.transform = "scale(0.95)";
+    setTimeout(() => { fetchBtn.style.transform = ""; }, 150);
+    widget?.broadcast("reactor.trigger_fetch", { timestamp: Date.now() });
+  });
+
+  // 5. High-Frequency 20Hz Stress Test Loop
+  stressBtn.addEventListener("click", () => {
+    isStressLoopRunning = !isStressLoopRunning;
+    stressBtn.classList.toggle("active", isStressLoopRunning);
+
+    if (isStressLoopRunning) {
+      stressBtn.textContent = "⏹ STOP (20Hz)";
+      stressInterval = setInterval(() => {
+        stressAngle += 0.25;
+        // Oscillate speed smoothly between 15% and 95% at 20Hz
+        const waveSpeed = Math.round(55 + Math.sin(stressAngle) * 40);
+        speedSlider.value = String(waveSpeed);
+        sliderValDisplay.textContent = `${waveSpeed}%`;
+        widget?.broadcast("reactor.speed", { speed: waveSpeed, stress: true });
+      }, 50); // 20 updates per second
+    } else {
+      stressBtn.textContent = "🌀 20Hz STRESS";
+      if (stressInterval) clearInterval(stressInterval);
+      stressInterval = null;
+    }
+  });
+
+  // 7. Multi-Tier State Operations
+  // Tier A: Global State
+  incGlobalBtn.addEventListener("click", () => {
+    lifetimeHours += 100;
+    globalVal.textContent = `${lifetimeHours}h`;
+    widget?.shared.set("reactor_lifetime_hours", lifetimeHours);
+    widget?.broadcast("reactor.global_hours", { hours: lifetimeHours });
+  });
+
+  // Tier B: Cookie State
+  themeSelect.addEventListener("change", async (e) => {
+    const selectedTheme = e.target.value;
+    cookieSavedBadge.textContent = "SAVING...";
+    try {
+      if (widget) {
+        await widget.storage.set("reactor_theme", selectedTheme);
+        cookieSavedBadge.textContent = "SAVED";
+        widget.broadcast("reactor.theme_change", { theme: selectedTheme });
+      } else {
+        cookieSavedBadge.textContent = "QUEUED";
+      }
+    } catch {
+      cookieSavedBadge.textContent = "ERR";
+    }
+  });
+
+  // Tier C: Ephemeral Session Broadcast
+  sessionPingBtn.addEventListener("click", () => {
+    sessionPings++;
+    sessionPingCount.textContent = `Pings: ${sessionPings}`;
+    widget?.broadcast("reactor.session_ping", {
+      count: sessionPings,
+      timestamp: Date.now(),
+    });
+  });
+
+  // Hydrate & Bind Multi-tier State using Widget SDK
+  async function bindState() {
+    if (!widget) return;
+
+    // Tier 3: Shared Speed (syncs across all screens & restores on load)
+    widget.shared.on("reactor_speed", (val) => {
+      const num = typeof val === "number" ? val : val?.speed;
+      if (typeof num === "number") {
+        speedSlider.value = String(num);
+        sliderValDisplay.textContent = `${num}%`;
+        widget.broadcast("reactor.speed", { speed: num, hydrated: true });
+      }
+    });
+
+    // Tier 3: Shared Global Hours
+    widget.shared.on("reactor_lifetime_hours", (val) => {
+      const h = typeof val === "number" ? val : val?.hours;
+      if (typeof h === "number") {
+        lifetimeHours = h;
+        globalVal.textContent = `${lifetimeHours}h`;
+      }
+    });
+
+    // Tier 2: Client Storage Theme
+    try {
+      const savedTheme = await widget.storage.get("reactor_theme");
+      if (savedTheme) {
+        const themeName = typeof savedTheme === "string" ? savedTheme : savedTheme.theme;
+        if (themeName) themeSelect.value = themeName;
+      }
+    } catch {}
+  }
+
+  // Connect to Glansk Host in background
+  function initHostConnection() {
+    if (typeof Glansk === "undefined" || !Glansk.connect) {
+      setTimeout(initHostConnection, 100);
+      return;
+    }
+
+    Glansk.connect().then(async (connectedWidget) => {
+      widget = connectedWidget;
+
+      // Live Config
+      widget.onConfig((cfg) => {
+        if (cfg?.operatorName) {
+          panelTitle.textContent = cfg.operatorName;
+        }
+      });
+
+      // 6. Listen for Reactor Telemetry Feedback
+      widget.onNotification("reactor.metrics", (payload) => {
+        if (payload) {
+          if (payload.rpm !== undefined) teleRpm.textContent = `${payload.rpm}`;
+          if (payload.temp !== undefined) teleTemp.textContent = `${payload.temp}K`;
+          if (payload.status) teleStatus.textContent = payload.status;
+        }
+      });
+
+      await bindState();
+
+      // Clean up on destroy
+      widget.onDestroy(() => {
+        if (stressInterval) clearInterval(stressInterval);
+      });
+
+      // Signal render readiness
+      widget.reportReady();
+    }).catch(err => console.error("Glansk connect error:", err));
+  }
+
+  initHostConnection();
+})();
+
+  </script>
+</body>
+</html>

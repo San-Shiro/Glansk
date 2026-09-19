@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+.bun/
+
+# Build artifacts
+dist/
+build/
+*.tsbuildinfo
+
+# Runtime storage & data
+runtime/
+.glansk/
+.litedash/
+*.ndjson
+data/
+
+# Environment and secrets
+.env
+.env.local
+*.secret
+
+# Logs & temp
+*.log
+scratch/
+temp/
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db

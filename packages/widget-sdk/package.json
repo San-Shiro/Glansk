@@ -1,0 +1,19 @@
+{
+  "name": "@glansk/widget-sdk",
+  "version": "0.1.1-alpha",
+  "description": "Official Developer SDK for building sandboxed Glansk widgets and emitters",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "glansk-widget": "./cli/glansk-widget.js",
+    "gl-widget": "./cli/glansk-widget.js"
+  },
+  "scripts": {
+    "test": "bun test",
+    "build": "bun build ./src/index.ts --outdir ./dist"
+  },
+  "keywords": ["glansk", "widget", "sdk", "kiosk", "dashboard", "canvas"],
+  "author": "Glansk Authors",
+  "license": "Apache-2.0"
+}

@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quantum Reactor Core</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    :root {
+      --bg-core: #070b14;
+      --bg-card: rgba(11, 18, 33, 0.95);
+      --border-glow: rgba(56, 189, 248, 0.25);
+      --accent-cyan: #00f0ff;
+      --accent-blue: #38bdf8;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --accent-emerald: #10b981;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg-core);
+      color: var(--text-main);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+      touch-action: manipulation;
+    }
+
+    .reactor-card {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: radial-gradient(circle at 50% 30%, rgba(17, 30, 56, 0.95) 0%, rgba(7, 12, 22, 0.98) 100%);
+      border: 1px solid var(--border-glow);
+      border-radius: 16px;
+      padding: 14px 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .reactor-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(56, 189, 248, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56, 189, 248, 0.03) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+    }
+
+    .hud-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hud-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .hud-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 10px var(--accent-cyan);
+      animation: pulseDot 1.5s infinite alternate ease-in-out;
+    }
+
+    @keyframes pulseDot {
+      from { opacity: 0.5; transform: scale(0.85); }
+      to { opacity: 1; transform: scale(1.15); filter: brightness(1.3); }
+    }
+
+    .hud-title {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #fff;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    }
+
+    .hud-badges {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .badge {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 4px 9px;
+      border-radius: 6px;
+      letter-spacing: 0.06em;
+      background: rgba(0, 240, 255, 0.12);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      box-shadow: 0 0 8px rgba(0, 240, 255, 0.15);
+      text-transform: uppercase;
+      transition: all 0.2s ease;
+    }
+
+    .badge-dim {
+      background: rgba(148, 163, 184, 0.1);
+      color: var(--text-muted);
+      border-color: rgba(148, 163, 184, 0.2);
+      box-shadow: none;
+    }
+
+    .badge-overdrive {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+      border-color: rgba(239, 68, 68, 0.6);
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+      animation: pulseBadge 0.8s infinite alternate ease-in-out;
+    }
+
+    .badge-scram {
+      background: rgba(59, 130, 246, 0.25);
+      color: #93c5fd;
+      border-color: rgba(59, 130, 246, 0.6);
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+    }
+
+    @keyframes pulseBadge {
+      from { filter: brightness(1); }
+      to { filter: brightness(1.4); }
+    }
+
+    .canvas-container {
+      position: relative;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 6px 0;
+      overflow: hidden;
+      border-radius: 10px;
+      background: radial-gradient(circle at 50% 50%, rgba(13, 23, 44, 0.6) 0%, rgba(4, 8, 16, 0.8) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    #reactorCanvas {
+      width: 100%;
+      height: 100%;
+      max-height: 220px;
+      display: block;
+    }
+
+    .canvas-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 10px 22px;
+      background: rgba(10, 15, 30, 0.92);
+      border: 2px solid var(--accent-blue);
+      border-radius: 10px;
+      color: var(--accent-blue);
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      display: none;
+      box-shadow: 0 0 25px rgba(56, 189, 248, 0.5);
+      text-align: center;
+      backdrop-filter: blur(8px);
+      z-index: 10;
+      animation: scramPulse 1.2s infinite alternate;
+    }
+
+    @keyframes scramPulse {
+      0% { transform: translate(-50%, -50%) scale(0.98); box-shadow: 0 0 15px rgba(56, 189, 248, 0.4); }
+      100% { transform: translate(-50%, -50%) scale(1.02); box-shadow: 0 0 30px rgba(56, 189, 248, 0.7); }
+    }
+
+    .telemetry-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 8px 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .tele-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .tele-label {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--text-dim);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .tele-val {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 14px;
+      font-weight: 800;
+      color: #fff;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+    }
+
+    .state-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      position: relative;
+      z-index: 1;
+    }
+
+    .state-pill {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+  </style>
+  
+</head>
+<body>
+  <div class="reactor-card">
+    <header class="hud-header">
+      <div class="hud-title-group">
+        <span class="hud-dot" id="coreDot"></span>
+        <h2 class="hud-title" id="coreLabel">Core Alpha</h2>
+      </div>
+      <div class="hud-badges">
+        <span class="badge" id="statusBadge">NOMINAL</span>
+        <span class="badge badge-dim" id="egressBadge">EGRESS: IDLE</span>
+      </div>
+    </header>
+
+    <div class="canvas-container">
+      <canvas id="reactorCanvas" width="480" height="240"></canvas>
+      <div class="canvas-overlay" id="scramOverlay">⚠️ SCRAM ACTIVE</div>
+    </div>
+
+    <div class="telemetry-grid">
+      <div class="tele-item">
+        <span class="tele-label">OUTPUT SPEED</span>
+        <span class="tele-val" id="rpmVal">50 RPM</span>
+      </div>
+      <div class="tele-item">
+        <span class="tele-label">CORE TEMP</span>
+        <span class="tele-val" id="tempVal">525 °K</span>
+      </div>
+      <div class="tele-item">
+        <span class="tele-label">EGRESS PING</span>
+        <span class="tele-val" id="latencyVal">-- ms</span>
+      </div>
+      <div class="tele-item">
+        <span class="tele-label">PULSE CYCLES</span>
+        <span class="tele-val" id="cyclesVal">0</span>
+      </div>
+    </div>
+
+    <footer class="state-footer">
+      <span class="state-pill" id="globalStatePill">GLOBAL: 1200h</span>
+      <span class="state-pill" id="cookieStatePill">CLIENT: DEFAULT</span>
+      <span class="state-pill" id="sessionStatePill">SESSION: ACTIVE</span>
+    </footer>
+  </div>
+
+  
+
+  
+
+  
+
+  
+
+  <script>
+    /* Glansk SDK */
+    // Glansk Widget SDK — canonical source.
+//
+// This file is the single authoritative implementation of the client-side SDK.
+// Because sandboxed iframes run with an opaque ("null") origin (sandbox="allow-scripts"
+// without allow-same-origin), they cannot import cross-origin or same-origin resources
+// at runtime. Each packaged widget therefore ships a verbatim copy of this file as
+// sdk.js in its own directory.
+//
+// When editing this file, update all copies:
+//   src/widgets/glansk.demo/aurora-metric/sdk.js
+//   src/widgets/glansk.demo/command-control/sdk.js
+//   src/widgets/glansk.demo/sdk-status/sdk.js
+//   src/widgets/glansk.demo/status-grid/sdk.js
+//   src/widgets/glansk.demo/telemetry-chart/sdk.js
+//   src/widgets/glansk.media/image-carousel/sdk.js
+//
+// API surface (resolved value of Glansk.connect()):
+//   widget.identity      — { instanceId, packageId, widgetId }
+//   widget.display       — { id, storageNamespace } | null
+//                          null when rendering in the admin editor preview.
+//                          storageNamespace is a deterministic, URL-safe key prefix
+//                          scoped to display × package × widget × instance, for use
+//                          with future host-brokered per-screen storage.
+//                          NOTE: localStorage/sessionStorage/cookies/IndexedDB are
+//                          unavailable in the null-origin sandbox — do not use them.
+//   widget.onConfig(fn)  — subscribe to config updates; returns unsubscribe fn
+//   widget.onDestroy(fn) — subscribe to destroy lifecycle; returns unsubscribe fn
+//   widget.reportReady() — signal iframe is ready to display
+//   widget.subscribe(channel, fn, opts?) — subscribe to a state channel; returns unsub fn
+//   widget.command(cmd, payload, correlationId?) — send a command; returns Promise
+//   widget.broadcast(topic, payload) — broadcast ephemeral event to canvas and screens
+//   widget.onNotification(topic, fn) — subscribe to broadcast events; returns unsub fn
+
+const PROTOCOL = 'glansk.widget.v1';
+let hostOrigin, identity, display, nonce, config, resolveConnect, destroyed = false;
+let connectTimer = null;
+const configListeners = new Set(), destroyListeners = new Set(), subscriptions = new Map(), commands = new Map(), notifications = new Map(), fetches = new Map();
+const storagePromises = new Map(), sharedListeners = new Map(), sharedCache = new Map(), sharedSaveTimers = new Map(), storageSaveTimers = new Map();
+const connected = new Promise(resolve => resolveConnect = resolve);
+
+const send = body => {
+  if (!destroyed) parent.postMessage({ protocol: PROTOCOL, ...(identity ? { instanceId: identity.instanceId, nonce } : {}), ...body }, hostOrigin || '*');
+};
+
+const sendConnect = () => {
+  if (!identity && !destroyed) send({ type: 'connect' });
+};
+
+addEventListener('message', event => {
+  if (event.source !== parent || !event.data || event.data.protocol !== PROTOCOL) return;
+  const data = event.data;
+
+  // Initial handshake from the host — accept only once, before identity is bound.
+  if (data.type === 'connected' && !identity) {
+    if (connectTimer) {
+      clearInterval(connectTimer);
+      connectTimer = null;
+    }
+    hostOrigin = event.origin;
+    identity = data.identity;
+    // display is present only when rendered from a named kiosk target.
+    // Admin editor previews intentionally omit it; expose null for consistent typing.
+    display = data.display ?? null;
+    nonce = data.nonce;
+    config = data.config;
+    resolveConnect(api);
+    for (const listener of configListeners) listener(config);
+    return;
+  }
+
+  // All subsequent messages must come from the same origin, source, identity, and nonce.
+  if (event.origin !== hostOrigin || !identity || data.instanceId !== identity.instanceId || data.nonce !== nonce) return;
+
+  if (data.type === 'config-update') {
+    config = data.config;
+    for (const listener of configListeners) listener(config);
+  }
+  if ((data.type === 'state' || data.type === 'state-error') && subscriptions.has(data.channel)) {
+    for (const listener of subscriptions.get(data.channel)) listener(data.delivery || { kind: 'error', channel: data.channel, error: data.error });
+  }
+  if (data.type === 'notification' && notifications.has(data.topic)) {
+    for (const listener of notifications.get(data.topic)) {
+      try { listener(data.payload, data.meta); } catch (e) { console.error(e); }
+    }
+  }
+  if (data.type === 'command-result' && commands.has(data.correlationId)) {
+    commands.get(data.correlationId)(data);
+    commands.delete(data.correlationId);
+  }
+  if (data.type === 'fetch-result' && fetches.has(data.correlationId)) {
+    fetches.get(data.correlationId)(data);
+    fetches.delete(data.correlationId);
+  }
+  if (data.type === 'storage-result' && storagePromises.has(data.correlationId)) {
+    storagePromises.get(data.correlationId)(data);
+    storagePromises.delete(data.correlationId);
+  }
+  if (data.type === 'shared-update' && typeof data.key === 'string') {
+    sharedCache.set(data.key, { value: data.value, revision: data.revision || 0 });
+    if (sharedListeners.has(data.key)) {
+      for (const listener of sharedListeners.get(data.key)) {
+        try { listener(data.value, data.meta || {}); } catch (e) { console.error(e); }
+      }
+    }
+  }
+  if (data.type === 'destroy' && !destroyed) {
+    destroyed = true;
+    if (connectTimer) {
+      clearInterval(connectTimer);
+      connectTimer = null;
+    }
+    for (const listener of destroyListeners) listener();
+    for (const t of sharedSaveTimers.values()) clearTimeout(t);
+    sharedSaveTimers.clear();
+    for (const t of storageSaveTimers.values()) clearTimeout(t);
+    storageSaveTimers.clear();
+    configListeners.clear();
+    destroyListeners.clear();
+    subscriptions.clear();
+    commands.clear();
+    notifications.clear();
+    fetches.clear();
+    storagePromises.clear();
+    sharedListeners.clear();
+    sharedCache.clear();
+  }
+});
+
+const api = {
+  /**
+   * The widget instance identity assigned by the host.
+   * { instanceId, packageId, widgetId }
+   */
+  get identity() { return identity; },
+
+  /**
+   * Display context for this widget, or null when running in the admin editor
+   * preview (which intentionally receives no display identity).
+   *
+   * When non-null:
+   *   display.id               — opaque identifier for the physical screen
+   *   display.storageNamespace — deterministic, URL-safe key prefix scoped to
+   *                              display × package × widget × instance, for
+   *                              future host-brokered per-screen storage.
+   *
+   * IMPORTANT: display identity is informational only. Do not use it to
+   * authorize actions; all authorization is enforced server-side.
+   */
+  get display() { return display; },
+
+  /** Subscribe to configuration updates from the host. Returns an unsubscribe function. */
+  onConfig(listener) {
+    configListeners.add(listener);
+    if (config !== undefined) listener(config);
+    return () => configListeners.delete(listener);
+  },
+
+  /** Subscribe to the destroy lifecycle event. Returns an unsubscribe function. */
+  onDestroy(listener) {
+    destroyListeners.add(listener);
+    return () => destroyListeners.delete(listener);
+  },
+
+  /** Signal to the host that the widget iframe has rendered and is ready to display. */
+  reportReady() { send({ type: 'ready' }); },
+
+  /**
+   * Subscribe to a state channel. `listener` is called with each delivery.
+   * Returns an unsubscribe function.
+   */
+  subscribe(channel, listener, options = {}) {
+    const listeners = subscriptions.get(channel) || new Set();
+    listeners.add(listener);
+    subscriptions.set(channel, listeners);
+    send({ type: 'subscribe', channel, fromRevision: options.fromRevision });
+    return () => {
+      listeners.delete(listener);
+      if (!listeners.size) { subscriptions.delete(channel); send({ type: 'unsubscribe', channel }); }
+    };
+  },
+
+  /**
+   * Send a host-declared command. Returns a Promise that resolves with the
+   * command result when the host replies.
+   */
+  command(command, payload, correlationId = crypto.randomUUID()) {
+    return new Promise(resolve => {
+      commands.set(correlationId, resolve);
+      send({ type: 'command', command, payload, correlationId });
+    });
+  },
+
+  /**
+   * Broadcast an ephemeral notification to other widgets on the canvas and across screens.
+   */
+  broadcast(topic, payload) {
+    send({ type: 'broadcast', topic, payload });
+  },
+
+  /**
+   * Subscribe to an ephemeral notification topic. Returns an unsubscribe function.
+   */
+  onNotification(topic, listener) {
+    const listeners = notifications.get(topic) || new Set();
+    listeners.add(listener);
+    notifications.set(topic, listeners);
+    send({ type: 'notify-subscribe', topic });
+    return () => {
+      listeners.delete(listener);
+      if (!listeners.size) {
+        notifications.delete(topic);
+        send({ type: 'notify-unsubscribe', topic });
+      }
+    };
+  },
+
+  /**
+   * Perform a secure, host-brokered fetch to an external API.
+   * Vault credentials ({{secret:<id>}}) are injected by the host.
+   */
+  fetch(url, options = {}) {
+    const correlationId = crypto.randomUUID();
+    return new Promise((resolve, reject) => {
+      fetches.set(correlationId, result => {
+        if (result.ok) {
+          const headersMap = new Map();
+          if (result.headers) {
+            for (const [k, v] of Object.entries(result.headers)) {
+              headersMap.set(k.toLowerCase(), v);
+            }
+          }
+          resolve({
+            ok: result.status >= 200 && result.status < 300,
+            status: result.status,
+            statusText: result.statusText,
+            headers: {
+              get: name => headersMap.get(name.toLowerCase()) ?? null,
+              has: name => headersMap.has(name.toLowerCase()),
+              entries: () => Array.from(headersMap.entries()),
+            },
+            text: async () => result.data ?? '',
+            json: async () => JSON.parse(result.data ?? 'null'),
+          });
+        } else {
+          const err = new Error(result.error?.message || 'Proxy fetch failed');
+          err.code = result.error?.code;
+          reject(err);
+        }
+      });
+      send({
+        type: 'fetch',
+        correlationId,
+        url,
+        method: options.method || 'GET',
+        headers: options.headers || {},
+        body: options.body,
+        timeoutMs: options.timeoutMs,
+      });
+    });
+  },
+
+  /**
+   * Client-scoped personal storage (sandbox-safe equivalent of localStorage).
+   * Persists on this browser profile across page refreshes under the client's ld_client_id cookie.
+   * Fresh / empty when opened in an incognito window or separate browser.
+   */
+  storage: {
+    get(key, defaultValue = undefined) {
+      const correlationId = crypto.randomUUID();
+      return new Promise(resolve => {
+        storagePromises.set(correlationId, (res) => {
+          if (res && res.ok && res.value !== null && res.value !== undefined) {
+            resolve(res.value);
+          } else {
+            resolve(defaultValue);
+          }
+        });
+        send({ type: 'storage-get', key, correlationId });
+      });
+    },
+
+    set(key, value, debounceMs = 150) {
+      return new Promise(resolve => {
+        const correlationId = crypto.randomUUID();
+        storagePromises.set(correlationId, () => resolve());
+        const flush = () => {
+          storageSaveTimers.delete(key);
+          send({ type: 'storage-set', key, value, correlationId });
+        };
+        if (debounceMs <= 0) {
+          if (storageSaveTimers.has(key)) {
+            clearTimeout(storageSaveTimers.get(key));
+            storageSaveTimers.delete(key);
+          }
+          flush();
+        } else {
+          if (storageSaveTimers.has(key)) {
+            clearTimeout(storageSaveTimers.get(key));
+          }
+          storageSaveTimers.set(key, setTimeout(flush, debounceMs));
+        }
+      });
+    },
+
+    delete(key) {
+      const correlationId = crypto.randomUUID();
+      return new Promise(resolve => {
+        storagePromises.set(correlationId, () => resolve());
+        send({ type: 'storage-delete', key, correlationId });
+      });
+    },
+  },
+
+  /**
+   * Real-time cross-kiosk shared state.
+   * Persists to server disk and syncs live across all connected screens and kiosks (<50ms via SSE).
+   */
+  shared: {
+    get(key, fallback = undefined) {
+      const record = sharedCache.get(key);
+      return record !== undefined ? record.value : fallback;
+    },
+
+    set(key, value, options = {}) {
+      const debounceMs = options.debounceMs ?? 150;
+      sharedCache.set(key, { value, revision: (sharedCache.get(key)?.revision || 0) + 1 });
+      const flush = () => {
+        sharedSaveTimers.delete(key);
+        send({ type: 'shared-set', key, value });
+      };
+      if (debounceMs <= 0) {
+        if (sharedSaveTimers.has(key)) {
+          clearTimeout(sharedSaveTimers.get(key));
+          sharedSaveTimers.delete(key);
+        }
+        flush();
+      } else {
+        if (sharedSaveTimers.has(key)) {
+          clearTimeout(sharedSaveTimers.get(key));
+        }
+        sharedSaveTimers.set(key, setTimeout(flush, debounceMs));
+      }
+    },
+
+    on(key, listener) {
+      let listeners = sharedListeners.get(key);
+      const isFirst = !listeners || listeners.size === 0;
+      if (!listeners) {
+        listeners = new Set();
+        sharedListeners.set(key, listeners);
+      }
+      listeners.add(listener);
+
+      if (isFirst) {
+        send({ type: 'shared-subscribe', key });
+      } else if (sharedCache.has(key)) {
+        try { listener(sharedCache.get(key).value, { initial: true }); } catch (e) { console.error(e); }
+      }
+
+      return () => {
+        listeners.delete(listener);
+        if (listeners.size === 0) {
+          sharedListeners.delete(key);
+          send({ type: 'shared-unsubscribe', key });
+        }
+      };
+    },
+
+    bind(key, options = {}) {
+      const defVal = options.default;
+      const debounceMs = options.debounceMs ?? 150;
+      if (!sharedCache.has(key) && defVal !== undefined) {
+        sharedCache.set(key, { value: defVal, revision: 0 });
+      }
+      if (options.onChange) {
+        this.on(key, options.onChange);
+      } else {
+        if (!sharedListeners.has(key)) {
+          sharedListeners.set(key, new Set());
+          send({ type: 'shared-subscribe', key });
+        }
+      }
+      return {
+        get: () => this.get(key, defVal),
+        set: (val) => this.set(key, val, { debounceMs }),
+        subscribe: (fn) => this.on(key, fn),
+      };
+    },
+  },
+
+  /**
+   * Unified reactive state handle helper.
+   * Supports 'session' (plain in-memory), 'cookie' (widget.storage), and 'global' (widget.shared).
+   */
+  state(key, options = {}) {
+    const scope = options.scope || 'global';
+    if (scope === 'session') {
+      let val = options.default;
+      const subs = new Set();
+      if (options.onChange) subs.add(options.onChange);
+      return {
+        get: () => val,
+        set: (v) => { val = v; for (const fn of subs) fn(val, { from: 'local' }); },
+        subscribe: (fn) => { subs.add(fn); fn(val, { from: 'initial' }); return () => subs.delete(fn); },
+      };
+    }
+    if (scope === 'cookie') {
+      let val = options.default;
+      const subs = new Set();
+      if (options.onChange) subs.add(options.onChange);
+      this.storage.get(key, options.default).then(fetched => {
+        if (fetched !== undefined && fetched !== null) {
+          val = fetched;
+          for (const fn of subs) fn(val, { from: 'initial' });
+        }
+      });
+      return {
+        get: () => val,
+        set: (v) => { val = v; for (const fn of subs) fn(val, { from: 'local' }); this.storage.set(key, v, options.debounceMs); },
+        subscribe: (fn) => { subs.add(fn); fn(val, { from: 'initial' }); return () => subs.delete(fn); },
+      };
+    }
+    return this.shared.bind(key, options);
+  },
+};
+
+globalThis.Glansk = {
+  /** Initiate the host handshake. Returns a Promise that resolves to the widget API. */
+  connect() {
+    sendConnect();
+    if (!connectTimer && !identity) {
+      connectTimer = setInterval(sendConnect, 200);
+    }
+    return connected;
+  },
+};
+
+
+    /* Quantum Reactor Core */
+    (function () {
+  let widget = null;
+
+  const canvas = document.getElementById("reactorCanvas");
+  const ctx = canvas.getContext("2d");
+  const scramOverlay = document.getElementById("scramOverlay");
+  const coreLabel = document.getElementById("coreLabel");
+  const statusBadge = document.getElementById("statusBadge");
+  const egressBadge = document.getElementById("egressBadge");
+  const rpmVal = document.getElementById("rpmVal");
+  const tempVal = document.getElementById("tempVal");
+  const latencyVal = document.getElementById("latencyVal");
+  const cyclesVal = document.getElementById("cyclesVal");
+  const globalStatePill = document.getElementById("globalStatePill");
+  const cookieStatePill = document.getElementById("cookieStatePill");
+  const sessionStatePill = document.getElementById("sessionStatePill");
+
+  let speed = 50; // 0 to 100
+  let isScram = false;
+  let isOverdrive = false;
+  let totalCycles = 0;
+  let rotationAngle = 0;
+  let telemetryUrl = "https://httpbin.org/get";
+  let secretRef = "";
+
+  // Dynamic particle simulation
+  const NUM_PARTICLES = 36;
+  const particles = [];
+  for (let i = 0; i < NUM_PARTICLES; i++) {
+    particles.push({
+      angle: (i / NUM_PARTICLES) * Math.PI * 2,
+      radiusOffset: (Math.random() - 0.5) * 20,
+      speedMultiplier: 0.75 + Math.random() * 0.5,
+      size: 2 + Math.random() * 3,
+      pulse: Math.random() * Math.PI * 2,
+    });
+  }
+
+  // 1. Host-Brokered Fetch Egress Execution
+  async function executeEgressFetch() {
+    if (!widget) return;
+    egressBadge.textContent = "EGRESS: PING";
+    egressBadge.className = "badge badge-dim";
+    const startTime = performance.now();
+
+    try {
+      const url = secretRef
+        ? `${telemetryUrl}?key={{secret:${secretRef}}}`
+        : telemetryUrl;
+
+      const res = await widget.fetch(url, {
+        method: "GET",
+        headers: { "X-Client": "quantum-reactor", Accept: "application/json" },
+        timeoutMs: 6000,
+      });
+
+      const elapsed = Math.round(performance.now() - startTime);
+      latencyVal.textContent = `${elapsed} ms`;
+      egressBadge.textContent = `EGRESS: ${res.status}`;
+      egressBadge.className = res.ok ? "badge" : "badge badge-overdrive";
+    } catch {
+      latencyVal.textContent = "ERR";
+      egressBadge.textContent = "EGRESS: FAIL";
+      egressBadge.className = "badge badge-overdrive";
+    }
+  }
+
+  // 2. Hydrate & Bind Multi-tier State using Widget SDK
+  async function bindState() {
+    if (!widget) return;
+
+    // Tier 3 (Shared): Real-time synced across all kiosks and screens
+    widget.shared.on("reactor_speed", (val) => {
+      const num = typeof val === "number" ? val : val?.speed;
+      if (typeof num === "number") {
+        speed = Math.max(0, Math.min(100, num));
+        updateStateAndOutputs();
+      }
+    });
+
+    widget.shared.on("reactor_lifetime_hours", (val) => {
+      const h = typeof val === "number" ? val : val?.hours;
+      if (h !== undefined) {
+        globalStatePill.textContent = `GLOBAL: ${h}h`;
+      }
+    });
+
+    // Tier 2 (Storage): Client-scoped personal persistence (isolated from incognito)
+    try {
+      const savedTheme = await widget.storage.get("reactor_theme");
+      if (savedTheme) {
+        const themeName = typeof savedTheme === "string" ? savedTheme : savedTheme.theme;
+        if (themeName) cookieStatePill.textContent = `CLIENT: ${themeName}`;
+      }
+    } catch {}
+  }
+
+  // 3. Update Status & Publish Output Variables
+  function updateStateAndOutputs() {
+    const currentRpm = isScram ? 0 : Math.round(speed * 1.6);
+    const currentTemp = isScram ? 295 : Math.round(300 + currentRpm * 4.2);
+
+    let status = "NOMINAL";
+    if (isScram) status = "SCRAM";
+    else if (isOverdrive) status = "OVERDRIVE";
+    else if (currentRpm > 120) status = "SUPERCHARGED";
+
+    statusBadge.textContent = status;
+    statusBadge.className =
+      status === "SCRAM"
+        ? "badge badge-scram"
+        : status === "OVERDRIVE"
+        ? "badge badge-overdrive"
+        : "badge";
+
+    scramOverlay.style.display = isScram ? "block" : "none";
+    rpmVal.textContent = `${currentRpm} RPM`;
+    tempVal.textContent = `${currentTemp} °K`;
+
+    // Publish Output Variables for other widgets on the active canvas
+    if (widget) {
+      const instId = widget.identity?.instanceId || "quantum-reactor";
+      widget.broadcast("reactor.metrics", {
+        instanceId: instId,
+        rpm: currentRpm,
+        temp: currentTemp,
+        status: status,
+        isScram: isScram,
+      });
+    }
+  }
+
+  // 4. Smooth 60 FPS HTML5 Canvas Animation Loop with HiDPI support
+  let lastFrameTime = performance.now();
+
+  function syncCanvasDpi() {
+    const dpr = window.devicePixelRatio || 2;
+    const rect = canvas.getBoundingClientRect();
+    const targetW = Math.round((rect.width || 380) * dpr);
+    const targetH = Math.round((rect.height || 220) * dpr);
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
+    }
+  }
+
+  function render(time) {
+    syncCanvasDpi();
+
+    const dt = Math.min(50, time - lastFrameTime) / 1000;
+    lastFrameTime = time;
+
+    const w = canvas.width;
+    const h = canvas.height;
+    const cx = w / 2;
+    const cy = h / 2;
+
+    ctx.clearRect(0, 0, w, h);
+
+    const baseRadius = Math.min(w, h) * 0.33;
+    const effectiveSpeed = isScram ? 0 : isOverdrive ? speed * 2.2 : speed;
+    const angularVelocity = (effectiveSpeed / 100) * Math.PI * 1.6;
+    rotationAngle += angularVelocity * dt;
+
+    if (effectiveSpeed > 0) {
+      totalCycles += (angularVelocity * dt) / (Math.PI * 2);
+      cyclesVal.textContent = Math.floor(totalCycles).toLocaleString();
+    }
+
+    // Dynamic Theme Colors
+    const primaryColor = isScram ? "#38bdf8" : isOverdrive ? "#ef4444" : "#00f0ff";
+    const secondaryColor = isScram ? "#60a5fa" : isOverdrive ? "#f59e0b" : "#38bdf8";
+    const glowColor = isScram ? "rgba(56, 189, 248, 0.4)" : isOverdrive ? "rgba(239, 68, 68, 0.6)" : "rgba(0, 240, 255, 0.5)";
+
+    // 1. Outer magnetic containment ring
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rotationAngle * 0.35);
+
+    ctx.beginPath();
+    ctx.arc(0, 0, baseRadius + 20, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    // Segmented ring marks (reticle compass ticks)
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, baseRadius + 20, a, a + 0.16);
+      ctx.strokeStyle = primaryColor;
+      ctx.lineWidth = 5;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = glowColor;
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // 2. Inner counter-rotating ring
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(-rotationAngle * 0.6);
+
+    ctx.beginPath();
+    ctx.arc(0, 0, baseRadius - 14, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, baseRadius - 14, a, a + 0.22);
+      ctx.strokeStyle = secondaryColor;
+      ctx.lineWidth = 4;
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // 3. Central glowing plasma core
+    const corePulse = Math.sin(time * 0.006) * 6;
+    const coreRadius = Math.max(12, baseRadius * 0.38 + corePulse + (effectiveSpeed / 100) * 12);
+
+    const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, coreRadius);
+    grad.addColorStop(0, "#ffffff");
+    grad.addColorStop(0.3, primaryColor);
+    grad.addColorStop(0.7, secondaryColor);
+    grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, coreRadius, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.shadowBlur = isOverdrive ? 30 : 18;
+    ctx.shadowColor = primaryColor;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // 4. Orbiting flux particles
+    for (const p of particles) {
+      if (!isScram) {
+        p.angle += (angularVelocity * p.speedMultiplier * dt) * 0.85;
+      }
+      p.pulse += dt * 3.5;
+
+      const r = baseRadius + p.radiusOffset + Math.sin(p.pulse) * 4;
+      const px = cx + Math.cos(p.angle) * r;
+      const py = cy + Math.sin(p.angle) * r;
+
+      ctx.beginPath();
+      ctx.arc(px, py, p.size * (baseRadius / 80), 0, Math.PI * 2);
+      ctx.fillStyle = primaryColor;
+      ctx.shadowBlur = isOverdrive ? 16 : 8;
+      ctx.shadowColor = primaryColor;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    requestAnimationFrame(render);
+  }
+
+  // 5. Connect to Glansk Host in background
+  function initHostConnection() {
+    if (typeof Glansk === "undefined" || !Glansk.connect) {
+      setTimeout(initHostConnection, 100);
+      return;
+    }
+
+    Glansk.connect().then(async (connectedWidget) => {
+      widget = connectedWidget;
+
+      // 1. Live Config Handling
+      widget.onConfig((cfg) => {
+        if (cfg?.label) coreLabel.textContent = cfg.label;
+        if (cfg?.telemetryUrl) telemetryUrl = cfg.telemetryUrl;
+        if (cfg?.secretRef) secretRef = cfg.secretRef;
+      });
+
+      // 2. Display Identity & Multi-tier State Handling
+      if (widget.display) {
+        cookieStatePill.textContent = `CLIENT: ${widget.display.id}`;
+      }
+
+      // 3. Inter-Widget Event Listeners
+      widget.onNotification("reactor.scram", (payload) => {
+        isScram = Boolean(payload?.active);
+        updateStateAndOutputs();
+      });
+
+      widget.onNotification("reactor.speed", (payload) => {
+        if (typeof payload?.speed === "number") {
+          speed = Math.max(0, Math.min(100, payload.speed));
+          updateStateAndOutputs();
+        }
+      });
+
+      widget.onNotification("reactor.overdrive", (payload) => {
+        isOverdrive = Boolean(payload?.active);
+        updateStateAndOutputs();
+      });
+
+      widget.onNotification("reactor.trigger_fetch", () => {
+        executeEgressFetch();
+      });
+
+      widget.onNotification("reactor.session_ping", (payload) => {
+        if (payload?.count) {
+          sessionStatePill.textContent = `SESSION: PING #${payload.count}`;
+        }
+      });
+
+      widget.onNotification("reactor.global_hours", (payload) => {
+        if (payload?.hours) {
+          globalStatePill.textContent = `GLOBAL: ${payload.hours}h`;
+        }
+      });
+
+      widget.onNotification("reactor.theme_change", (payload) => {
+        if (payload?.theme) {
+          cookieStatePill.textContent = `CLIENT: ${payload.theme}`;
+        }
+      });
+
+      // Hydrate and bind state
+      bindState();
+
+      // Broadcast initial metrics
+      updateStateAndOutputs();
+
+      // 8. Signal render readiness
+      widget.reportReady();
+    }).catch(err => console.error("Glansk connect error:", err));
+  }
+
+  // START LOCAL ANIMATION AND TELEMETRY IMMEDIATELY!
+  updateStateAndOutputs();
+  requestAnimationFrame(render);
+
+  // Periodic automatic fetch every 30s once connected
+  setInterval(executeEgressFetch, 30000);
+
+  // Connect to host in background
+  initHostConnection();
+})();
+
+  </script>
+</body>
+</html>

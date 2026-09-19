@@ -1,0 +1,4 @@
+[install]
+# Cache bun packages across workspaces
+cache = true
+exact = false

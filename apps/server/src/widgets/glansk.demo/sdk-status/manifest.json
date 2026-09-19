@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "glansk.demo",
+  "version": "1.0.0",
+  "widgets": [{
+    "id": "sdk-status",
+    "entry": "index.html",
+    "state": [{"channel": "showcase/operations", "schema": "glansk.showcase.operations/1"}]
+  }]
+}

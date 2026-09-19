@@ -1,0 +1,8 @@
+{
+  "name": "@glansk/shared",
+  "version": "0.1.1-alpha",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts"
+}

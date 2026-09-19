@@ -1,0 +1,71 @@
+{
+  "manifestVersion": 2,
+  "id": "glansk.stress-test",
+  "version": "1.0.0",
+  "name": "Quantum Reactor Stress Suite",
+  "kind": "composite",
+  "description": "High-intensity dual-widget stress testing suite for egress, animation, cross-widget reactive variables, and multi-tier state.",
+  "author": {
+    "name": "Glansk Core Team"
+  },
+  "compatibility": {
+    "glansk": ">=0.1.0",
+    "protocol": "glansk.widget.v1"
+  },
+  "widgets": [
+    {
+      "id": "quantum-reactor",
+      "name": "Quantum Reactor Core",
+      "entry": "quantum-reactor/index.html",
+      "category": "display",
+      "description": "High-framerate particle animation with reactive turbulence, output variables, and host-proxied egress telemetry.",
+      "dimensions": {
+        "default": { "w": 560, "h": 420 },
+        "minimum": { "w": 320, "h": 240 }
+      },
+      "configSchema": [
+        { "key": "label", "type": "string", "label": "Reactor Core Name", "default": "Core Alpha" },
+        { "key": "telemetryUrl", "type": "string", "label": "Telemetry Egress Endpoint", "default": "https://api.sample.org/telemetry" },
+        { "key": "secretRef", "type": "secret-ref", "label": "Telemetry Secret", "hint": "Select telemetry API key from vault" },
+        { "key": "stateMode", "type": "string", "label": "State Tier Mode", "default": "global" }
+      ],
+      "defaultConfig": {
+        "label": "Core Alpha",
+        "telemetryUrl": "https://api.sample.org/telemetry",
+        "stateMode": "global"
+      },
+      "capabilities": {
+        "publishTopics": ["reactor.status", "reactor.cycle"],
+        "subscribeTopics": ["reactor.command", "control.mode"],
+        "notifications": ["reactor.emergency"]
+      }
+    },
+    {
+      "id": "mission-control",
+      "name": "Reactor Mission Control",
+      "entry": "mission-control/index.html",
+      "category": "control",
+      "description": "Tactile operator desk providing high-frequency variable manipulation, SCRAM halt, and multi-tier state controls.",
+      "dimensions": {
+        "default": { "w": 420, "h": 420 },
+        "minimum": { "w": 300, "h": 240 }
+      },
+      "configSchema": [
+        { "key": "operatorName", "type": "string", "label": "Operator Name", "default": "Operator 1" },
+        { "key": "targetReactor", "type": "string", "label": "Target Reactor Instance", "default": "quantum-reactor" },
+        { "key": "stateMode", "type": "string", "label": "State Tier Mode", "default": "global" }
+      ],
+      "defaultConfig": {
+        "operatorName": "Operator 1",
+        "targetReactor": "quantum-reactor",
+        "stateMode": "global"
+      },
+      "capabilities": {
+        "publishTopics": ["reactor.command", "control.mode"],
+        "subscribeTopics": ["reactor.status"],
+        "notifications": ["control.broadcast"]
+      }
+    }
+  ],
+  "files": {}
+}

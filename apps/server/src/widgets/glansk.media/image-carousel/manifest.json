@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "id": "glansk.media",
+  "version": "1.0.0",
+  "widgets": [{"id":"image-carousel","entry":"index.html"}],
+  "mediaPolicy": {"root":"assets/","formats":["jpeg","png","webp","avif"],"maxImages":32,"maxFileBytes":262144,"maxPackageBytes":2097152}
+}

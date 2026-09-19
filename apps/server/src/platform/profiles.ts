@@ -1,0 +1,1 @@
+export const profiles={development:{maxPackageBytes:50_000_000,maxWidgets:100,maxFps:60,allowUnsigned:true},constrained:{maxPackageBytes:5_000_000,maxWidgets:12,maxFps:30,allowUnsigned:false},production:{maxPackageBytes:20_000_000,maxWidgets:50,maxFps:60,allowUnsigned:false}} as const;export type ProfileName=keyof typeof profiles;

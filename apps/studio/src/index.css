@@ -1,0 +1,215 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ------------------------------------------------------------------ *
+ * Glansk Studio & Admin Panel — Unified Design Tokens.
+ * High-contrast, modern, refined dark/light theme engine.
+ * ------------------------------------------------------------------ */
+
+/* Light Mode Design Tokens */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  --radius: 8px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-2xl: 26px;
+
+  /* Shell & Surfaces */
+  --bg-outer: #EDF1F5;
+  --bg-rail: #F4F7FA;
+  --bg-canvas: #FFFFFF;
+  --bg-elevated: #F8FAFD;
+  --bg-elevated-hover: #F0F4F8;
+  --border-subtle: #D8E0E8;
+  --border-hover: #C0CCD7;
+
+  /* Core compatibility tokens */
+  --bg: #EDF1F5;
+  --panel: #FFFFFF;
+  --panel-2: #F8FAFD;
+  --panel-3: #F0F4F8;
+  --line: #D8E0E8;
+  --line-2: #C0CCD7;
+  --ink: #101720;
+  --ink-2: #4A5868;
+  --ink-3: #788796;
+  --accent: #D94E1C;
+  --accent-ink: #FFFFFF;
+  --accent-soft: rgba(217, 78, 28, 0.08);
+
+  /* Reference Brand Colors */
+  --orange-primary: #D94E1C;
+  --orange-hover: #C64111;
+  --orange-deep: #B03407;
+  --ice-blue: #547794;
+  --steel-blue: #4A5868;
+  --graphite: #3A4652;
+
+  /* Precision Navigation Indicator */
+  --nav-active: #101720;
+  --nav-active-fg: #FFFFFF;
+  --nav-active-border: #101720;
+
+  /* Semantic Precision Accents */
+  --emerald: #3B7E55;
+  --indigo: #5A6D85;
+  --cyan: #4A7A96;
+  --amber: #A66F31;
+
+  /* Unified Card Palette */
+  --card-bg: #FFFFFF;
+  --card-border: #D8E0E8;
+  --card-border-hover: #C0CCD7;
+
+  /* Badge tokens */
+  --badge-bg: #F0F4F8;
+  --badge-border: #D8E0E8;
+  --badge-text: #2C3846;
+
+  /* Button Disabled States */
+  --btn-disabled-bg: #E4EBF2;
+  --btn-disabled-border: #CBD5E0;
+  --btn-disabled-text: #8E9CA8;
+
+  /* Pill controls */
+  --pill-bg: #F0F4F8;
+  --pill-hover: #E4EBF2;
+  --pill-active-bg: #101720;
+  --pill-active-fg: #FFFFFF;
+  --track: rgba(16, 23, 32, 0.08);
+
+  --ok: #3B7E55;
+  --ok-soft: #EEF7F2;
+  --warn: #A66F31;
+  --warn-soft: #FCF6EE;
+  --danger: #A64040;
+  --danger-soft: #FDF1F1;
+  --cat-data: #4A7A96;
+  --cat-display: #3B7E55;
+  --cat-control: #D94E1C;
+  --cat-media: #5A6D85;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+}
+
+/* Dark Mode Design Tokens (Default) — Restrained Studio Obsidian & Copper */
+:root[data-theme="dark"],
+.dark {
+  color-scheme: dark;
+  --radius: 8px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-2xl: 26px;
+
+  /* Shell & Surfaces */
+  --bg-outer: #0B0F14;
+  --bg-rail: #10151C;
+  --bg-canvas: #161D26;
+  --bg-elevated: #1D2631;
+  --bg-elevated-hover: #242F3D;
+  --border-subtle: #293544;
+  --border-hover: #3A4A5E;
+
+  /* Core compatibility tokens */
+  --bg: #161D26;
+  --panel: #1A222C;
+  --panel-2: #222C38;
+  --panel-3: #2A3645;
+  --line: #293544;
+  --line-2: #3A4A5E;
+  --ink: #F0F4F8;
+  --ink-2: #9BAEC2;
+  --ink-3: #65778B;
+  --accent: #E65A28;
+  --accent-ink: #FFFFFF;
+  --accent-soft: rgba(230, 90, 40, 0.12);
+
+  /* Reference Brand Colors */
+  --orange-primary: #E65A28;
+  --orange-hover: #F26C3A;
+  --orange-deep: #CD4616;
+  --ice-blue: #8FA5BE;
+  --steel-blue: #5C6E80;
+  --graphite: #384552;
+
+  /* Precision Navigation Indicator */
+  --nav-active: #E6EDF5;
+  --nav-active-fg: #0B0F14;
+  --nav-active-border: #E6EDF5;
+
+  /* Semantic Precision Accents */
+  --emerald: #529E72;
+  --indigo: #8B9BB0;
+  --cyan: #5E94B8;
+  --amber: #B88247;
+
+  /* Unified Card Palette */
+  --card-bg: #1A222C;
+  --card-border: #293544;
+  --card-border-hover: #3A4A5E;
+
+  /* Badge tokens */
+  --badge-bg: #141A22;
+  --badge-border: #293544;
+  --badge-text: #9BAEC2;
+
+  /* Button Disabled States */
+  --btn-disabled-bg: #1E2732;
+  --btn-disabled-border: #2E3B4B;
+  --btn-disabled-text: #5A6D80;
+
+  /* Pill controls */
+  --pill-bg: #141A22;
+  --pill-hover: #222C38;
+  --pill-active-bg: #E6EDF5;
+  --pill-active-fg: #0B0F14;
+  --track: rgba(143, 165, 190, 0.12);
+
+  --ok: #529E72;
+  --ok-soft: rgba(82, 158, 114, 0.12);
+  --warn: #B88247;
+  --warn-soft: rgba(184, 130, 71, 0.12);
+  --danger: #B85353;
+  --danger-soft: rgba(184, 83, 83, 0.12);
+  --cat-data: #5E94B8;
+  --cat-display: #529E72;
+  --cat-control: #E65A28;
+  --cat-media: #8B9BB0;
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 16px -2px rgba(0, 0, 0, 0.35);
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+}
+input, select, textarea {
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  color: var(--ink);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+}
+input::placeholder, textarea::placeholder { color: var(--ink-3); }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 4px; border: 2px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-3); }
+
+button:disabled,
+button[disabled] {
+  cursor: not-allowed;
+}

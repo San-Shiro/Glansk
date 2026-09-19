@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"glansk.demo","widgets":[{"id":"telemetry-chart","state":[{"channel":"showcase/telemetry","schema":"glansk.showcase.telemetry/1"}]}]}
