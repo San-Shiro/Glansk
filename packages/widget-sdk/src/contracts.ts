@@ -72,3 +72,22 @@ export interface WidgetResponse {
   text(): Promise<string>;
   json<T = unknown>(): Promise<T>;
 }
+
+export interface WidgetStorageAPI {
+  get<T = unknown>(key: string): Promise<T | null>;
+  set(key: string, value: unknown): Promise<void>;
+  delete(key: string): Promise<void>;
+}
+
+export interface WidgetSharedMeta {
+  readonly remote?: boolean;
+  readonly initial?: boolean;
+  readonly from?: string;
+}
+
+export interface WidgetSharedAPI {
+  get<T = unknown>(key: string): T | null;
+  set(key: string, value: unknown): void;
+  on<T = unknown>(key: string, callback: (value: T, meta?: WidgetSharedMeta) => void): Unsubscribe;
+}
+

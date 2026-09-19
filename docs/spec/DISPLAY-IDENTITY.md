@@ -109,17 +109,20 @@ Sandboxed iframes load with an **opaque ("null") origin**
 - `IndexedDB` is **inaccessible**.
 - `Cache API` is **not available**.
 
-`storageNamespace` reserves a namespace for when host-brokered persistent
-storage is implemented. Widgets **must not** attempt to use browser storage APIs.
+`storageNamespace` reserves a namespace for host-brokered persistent storage.
+Widgets **must not** attempt to use browser storage APIs directly.
 
-### Host-brokered storage (future)
+### Host-brokered storage (implemented)
 
-A future set of broker messages (`store-get`, `store-set`, `store-delete`) will
-let widgets read and write scoped values through the postMessage bridge. The
-host will enforce the `storageNamespace` boundary server-side. This capability
-is **not yet implemented**.
+Host-brokered storage is fully implemented via the **3-Tier Storage Model**:
+- **Client Storage (`widget.storage`)**: Uses `storage-get`, `storage-set`, and `storage-delete` messages brokered through the host to `/api/v1/interactive-state?mode=cookie` scoped by client cookie (`gl_client_id`).
+- **Multi-Screen Shared State (`widget.shared`)**: Uses `shared-subscribe` and `shared-set` messages with local 0ms cross-widget fan-out, server disk persistence, and real-time Server-Sent Events (SSE) across all physical displays and kiosks.
+- **Display Identity**: Available on `widget.display` (`{ id, storageNamespace }`) when running in a kiosk environment (`/kiosk/<displayId>`). Null in the Admin Studio preview to ensure preview isolation.
+
+See [WIDGET-DEVELOPER-GUIDE.md](../WIDGET-DEVELOPER-GUIDE.md) for full API details and examples.
 
 ### Display identity must not authorize actions
+
 
 `display.id` and `display.storageNamespace` are **informational identifiers**.
 

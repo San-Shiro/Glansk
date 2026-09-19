@@ -7,8 +7,11 @@ import {
   type WidgetCustomTab,
   type WidgetOutputVariableDef,
   type WidgetFetchInit,
-  type WidgetResponse,
   type WidgetResponseHeaders,
+  type WidgetResponse,
+  type WidgetStorageAPI,
+  type WidgetSharedAPI,
+  type WidgetSharedMeta,
   type Unsubscribe,
 } from "./contracts";
 
@@ -19,7 +22,11 @@ export interface WidgetContext<C = Record<string, unknown>> {
   readonly display?: Readonly<DisplayIdentity> | undefined;
   readonly preset?: Readonly<WidgetPresetTokens> | undefined;
 
+  readonly storage: WidgetStorageAPI;
+  readonly shared: WidgetSharedAPI;
+
   readonly http: {
+
     fetch(url: string, init?: WidgetFetchInit): Promise<WidgetResponse>;
     get<T = unknown>(url: string, init?: Omit<WidgetFetchInit, "method" | "body">): Promise<T>;
     post<T = unknown>(url: string, body?: unknown, init?: Omit<WidgetFetchInit, "method" | "body">): Promise<T>;
@@ -81,10 +88,14 @@ export class WidgetRuntime<C = Record<string, unknown>> {
   private notifyHandlers = new Map<string, Set<(payload: unknown) => void>>();
   private pendingCommands = new Map<string, { resolve: (val: any) => void; reject: (err: any) => void }>();
   private pendingFetches = new Map<string, { resolve: (val: WidgetResponse) => void; reject: (err: any) => void }>();
+  private pendingStorage = new Map<string, { resolve: (val: any) => void; reject: (err: any) => void }>();
+  private sharedCache = new Map<string, unknown>();
+  private sharedListeners = new Map<string, Set<(val: any, meta?: WidgetSharedMeta) => void>>();
   private variables = new Map<string, unknown>();
   private variableWatchers = new Map<string, Set<(val: any, prev: any) => void>>();
   private messageListener?: (event: MessageEvent) => void;
   private cleanupMount?: Unsubscribe | void;
+
 
   constructor(
     private definition: WidgetDefinition<C>,
@@ -212,7 +223,32 @@ export class WidgetRuntime<C = Record<string, unknown>> {
       return;
     }
 
+    if (data.type === "storage-result" && data.correlationId) {
+      const entry = this.pendingStorage.get(data.correlationId);
+      if (entry) {
+        this.pendingStorage.delete(data.correlationId);
+        if (data.ok) {
+          entry.resolve(data.value ?? null);
+        } else {
+          entry.reject(new Error(data.error || "Storage operation failed"));
+        }
+      }
+      return;
+    }
+
+    if (data.type === "shared-update" && typeof data.key === "string") {
+      this.sharedCache.set(data.key, data.value);
+      const listeners = this.sharedListeners.get(data.key);
+      if (listeners) {
+        for (const cb of listeners) {
+          try { cb(data.value, data.meta); } catch (err) { console.error("shared listener error:", err); }
+        }
+      }
+      return;
+    }
+
     if ((data.type === "config_update" || data.type === "config-update") && data.config) {
+
       this.config = data.config;
       this.definition.configChanged?.(this.config, this.createContext());
       return;
@@ -286,7 +322,83 @@ export class WidgetRuntime<C = Record<string, unknown>> {
       display: this.display ? Object.freeze({ ...this.display }) : undefined,
       preset: this.preset ? Object.freeze({ ...this.preset }) : undefined,
 
+      storage: {
+        get: <T = unknown>(key: string): Promise<T | null> => {
+          return new Promise<T | null>((resolve, reject) => {
+            const correlationId = "stg_" + Math.random().toString(36).substring(2, 9);
+            this.pendingStorage.set(correlationId, { resolve, reject });
+            this.sendIdentified("storage-get", { correlationId, key });
+            setTimeout(() => {
+              if (this.pendingStorage.has(correlationId)) {
+                this.pendingStorage.delete(correlationId);
+                reject(new Error(`Storage get for '${key}' timed out`));
+              }
+            }, 6000);
+          });
+        },
+        set: (key: string, value: unknown): Promise<void> => {
+          return new Promise<void>((resolve, reject) => {
+            const correlationId = "sts_" + Math.random().toString(36).substring(2, 9);
+            this.pendingStorage.set(correlationId, { resolve: () => resolve(), reject });
+            this.sendIdentified("storage-set", { correlationId, key, value });
+            setTimeout(() => {
+              if (this.pendingStorage.has(correlationId)) {
+                this.pendingStorage.delete(correlationId);
+                reject(new Error(`Storage set for '${key}' timed out`));
+              }
+            }, 6000);
+          });
+        },
+        delete: (key: string): Promise<void> => {
+          return new Promise<void>((resolve, reject) => {
+            const correlationId = "std_" + Math.random().toString(36).substring(2, 9);
+            this.pendingStorage.set(correlationId, { resolve: () => resolve(), reject });
+            this.sendIdentified("storage-delete", { correlationId, key });
+            setTimeout(() => {
+              if (this.pendingStorage.has(correlationId)) {
+                this.pendingStorage.delete(correlationId);
+                reject(new Error(`Storage delete for '${key}' timed out`));
+              }
+            }, 6000);
+          });
+        },
+      },
+
+      shared: {
+        get: <T = unknown>(key: string): T | null => {
+          return (this.sharedCache.get(key) as T) ?? null;
+        },
+        set: (key: string, value: unknown): void => {
+          this.sharedCache.set(key, value);
+          this.sendIdentified("shared-set", { key, value });
+        },
+        on: <T = unknown>(key: string, callback: (value: T, meta?: WidgetSharedMeta) => void): Unsubscribe => {
+          let set = this.sharedListeners.get(key);
+          if (!set) {
+            set = new Set();
+            this.sharedListeners.set(key, set);
+            this.sendIdentified("shared-subscribe", { key });
+          }
+          set.add(callback as (val: any, meta?: WidgetSharedMeta) => void);
+          if (this.sharedCache.has(key)) {
+            try {
+              callback(this.sharedCache.get(key) as T, { initial: true });
+            } catch (err) {
+              console.error(err);
+            }
+          }
+          return () => {
+            set!.delete(callback as (val: any, meta?: WidgetSharedMeta) => void);
+            if (set!.size === 0) {
+              this.sharedListeners.delete(key);
+              this.sendIdentified("shared-unsubscribe", { key });
+            }
+          };
+        },
+      },
+
       http: {
+
         fetch: (url: string, init?: WidgetFetchInit): Promise<WidgetResponse> => {
           return new Promise<WidgetResponse>((resolve, reject) => {
             const correlationId = "fetch_" + Math.random().toString(36).substring(2, 9);
