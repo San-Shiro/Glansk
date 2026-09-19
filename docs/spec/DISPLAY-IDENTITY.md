@@ -119,9 +119,10 @@ Host-brokered storage is fully implemented via the **3-Tier Storage Model**:
 - **Multi-Screen Shared State (`widget.shared`)**: Uses `shared-subscribe` and `shared-set` messages with local 0ms cross-widget fan-out, server disk persistence, and real-time Server-Sent Events (SSE) across all physical displays and kiosks.
 - **Display Identity**: Available on `widget.display` (`{ id, storageNamespace }`) when running in a kiosk environment (`/kiosk/<displayId>`). Null in the Admin Studio preview to ensure preview isolation.
 
-See [WIDGET-DEVELOPER-GUIDE.md](../WIDGET-DEVELOPER-GUIDE.md) for full API details and examples.
+See [WIDGET-DEVELOPER-GUIDE.md](WIDGET-DEVELOPER-GUIDE.md) for full API details and examples.
 
 ### Display identity must not authorize actions
+
 
 
 `display.id` and `display.storageNamespace` are **informational identifiers**.

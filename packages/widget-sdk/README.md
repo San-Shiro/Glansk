@@ -287,6 +287,13 @@ Glansk enforces military-grade embedded security invariants:
 
 ---
 
+## Architectural Specification
+
+For the full architectural and message broker specification, see [docs/spec/WIDGET-DEVELOPER-GUIDE.md](../../docs/spec/WIDGET-DEVELOPER-GUIDE.md).
+
+---
+
 ## License
 
 Apache-2.0 / MIT © Glansk Authors
+

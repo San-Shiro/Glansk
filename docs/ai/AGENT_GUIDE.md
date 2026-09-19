@@ -62,3 +62,11 @@ bun run bump <new-version>
 # Example: bun run bump 0.1.2-alpha
 ```
 Never manually edit version numbers in individual `package.json` files.
+
+---
+
+## 5. Git & Branching Invariants
+
+- **`main`**: Production releases and tags only. Never commit experimental code directly to `main`.
+- **`dev`**: Active development branch. All engineering tasks, feature branches, and PRs branch from and target `dev`.
+

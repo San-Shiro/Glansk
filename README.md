@@ -17,6 +17,7 @@
 ### Ultra-Lean, Reactive Command Center & Kiosk Display Platform
 
 [![Version](https://img.shields.io/badge/version-v0.1.1--alpha-orange.svg)](https://github.com/San-Shiro/Glansk)
+[![Active Branch](https://img.shields.io/badge/branch-dev-2ea44f.svg)](https://github.com/San-Shiro/Glansk/tree/dev)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Runtime](https://img.shields.io/badge/runtime-Bun_1.2+-black.svg)](https://bun.sh)
 [![Architecture](https://img.shields.io/badge/architecture-Monorepo-purple.svg)](#monorepo-structure)
@@ -88,6 +89,10 @@ Glansk/
 ```bash
 git clone https://github.com/San-Shiro/Glansk.git
 cd Glansk
+
+# Switch to the active development branch
+git checkout dev
+
 bun install
 ```
 
@@ -105,6 +110,37 @@ To run the Vite studio dev server with Hot Module Reloading (HMR):
 ```bash
 bun run dev:studio
 # Runs Vite on http://localhost:5173 with automatic backend proxying to :3000
+```
+
+---
+
+## Branching Strategy & Development Workflow
+
+Glansk maintains a clear two-branch model:
+
+| Branch | Purpose | Stability | PR & Push Rules |
+| :--- | :--- | :--- | :--- |
+| **`main`** | Official stable releases and milestone tags (`v*.*.*`) | Production | Tagged releases only |
+| **`dev`** | **Active development**, continuous integration, rapid feature prototyping | Bleeding Edge | **Target for daily work, commits & all PRs** |
+
+### Everyday Workflow on `dev`
+```bash
+# 1. Keep dev up to date
+git checkout dev
+git pull origin dev
+
+# 2. Create your feature or fix branch
+git checkout -b feat/awesome-widget
+
+# 3. Validate before committing (all must pass!)
+bun test       # Runs 266+ unit and integration tests
+bun run build  # Validates full monorepo build (Studio, Server, SDK)
+
+# 4. Commit and push
+git commit -m "feat: add awesome widget"
+git push -u origin feat/awesome-widget
+
+# 5. Open a Pull Request targeting the `dev` branch!
 ```
 
 ---
@@ -156,7 +192,12 @@ To validate and pack a widget directory into a `.glpkg` distribution archive:
 bun run ./packages/widget-sdk/cli/glansk-widget.ts pack ./my-widget ./dist/my-widget.glpkg
 ```
 
+For full documentation on the **3-Tier Storage Model**, iframe sandboxing, pub/sub event bus, and secret injection, see:
+- [**Widget Developer & Architecture Guide**](docs/spec/WIDGET-DEVELOPER-GUIDE.md)
+- [**`@glansk/widget-sdk` Package Guide**](packages/widget-sdk/README.md)
+
 ---
+
 
 ## Release & Version Bumping
 
@@ -182,7 +223,22 @@ bun run bump 0.1.2-alpha
 
 ---
 
+## Contributing & Community Forks
+
+We want Glansk to be a thriving, community-driven platform where anyone can freely experiment, create widgets, and build custom setups:
+
+- **Forks & Freedom to Build**: You are completely free to fork Glansk, customize it for your own Raspberry Pi or homelab hardware, or deploy it internally without restrictions under the [Apache 2.0 License](LICENSE).
+- **Third-Party Widgets**: You can create, distribute, open-source, or commercially publish widgets built with `@glansk/widget-sdk` without needing prior approval or copyleft encumbrance.
+- **Contributing Code**:
+  1. Fork the repo and create your branch off **`dev`**.
+  2. Keep changes focused and test-driven.
+  3. Ensure `bun test` (all 266+ tests) passes and `bun run build` succeeds cleanly.
+  4. Open a Pull Request targeting **`dev`**.
+
+---
+
 ## License
 
 Glansk is open-source software licensed under the **[Apache License 2.0](LICENSE)**.
 Commercial homelabs, industrial signage operators, and third-party widget developers are free to use, modify, and build upon Glansk without viral copyleft constraints.
+
