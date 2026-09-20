@@ -142,6 +142,7 @@ export default function CanvasViewport({
         ...w.geometry,
         x: grp.geometry.x + w.geometry.x,
         y: grp.geometry.y + w.geometry.y,
+        zIndex: (grp.geometry.zIndex ?? 0) + (w.geometry.zIndex ?? 0) + 1,
       };
     },
     [groups]
@@ -212,8 +213,8 @@ export default function CanvasViewport({
             dx = Math.round(dx / 8) * 8;
             dy = Math.round(dy / 8) * 8;
           }
-          dx = clamp(dx, minDx, maxDx);
-          dy = clamp(dy, minDy, maxDy);
+          dx = clamp(dx, minDx, Math.max(minDx, maxDx));
+          dy = clamp(dy, minDy, Math.max(minDy, maxDy));
 
           for (const item of items) {
             item.last = {
@@ -1047,7 +1048,7 @@ export default function CanvasViewport({
                 }}
               >
                 <div
-                  className="absolute left-1 -top-6 px-1.5 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 shadow-xs pointer-events-none"
+                  className="absolute left-1 -top-6 px-1.5 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 shadow-xs cursor-pointer select-none"
                   style={{
                     background: sel ? "#f59e0b" : "color-mix(in srgb, var(--panel, #0e1726) 90%, black)",
                     color: sel ? "#000" : "#f59e0b",
@@ -1143,10 +1144,17 @@ export default function CanvasViewport({
           <div
             className="absolute z-50 flex items-center gap-1 p-1 rounded-lg border shadow-xl animate-fade-in pointer-events-auto"
             style={{
-              left: Math.max(10, selectionBounds.x + selectionBounds.width / 2),
-              top: selectionBounds.y < 50
-                ? selectionBounds.y + selectionBounds.height + 12
-                : selectionBounds.y - 44,
+              left: clamp(
+                selectionBounds.x + selectionBounds.width / 2,
+                120,
+                Math.max(120, LW * zoom - 120)
+              ),
+              top: Math.max(
+                8,
+                selectionBounds.y < 50
+                  ? selectionBounds.y + selectionBounds.height + 12
+                  : selectionBounds.y - 44
+              ),
               transform: "translateX(-50%)",
               background: "var(--panel)",
               borderColor: "var(--line)",
@@ -1236,10 +1244,17 @@ export default function CanvasViewport({
           <div
             className="absolute z-50 flex items-center gap-1 p-1 rounded-lg border shadow-xl animate-fade-in pointer-events-auto"
             style={{
-              left: Math.max(10, multiSelectionBounds.x + multiSelectionBounds.width / 2),
-              top: multiSelectionBounds.y < 50
-                ? multiSelectionBounds.y + multiSelectionBounds.height + 12
-                : multiSelectionBounds.y - 44,
+              left: clamp(
+                multiSelectionBounds.x + multiSelectionBounds.width / 2,
+                160,
+                Math.max(160, LW * zoom - 160)
+              ),
+              top: Math.max(
+                8,
+                multiSelectionBounds.y < 50
+                  ? multiSelectionBounds.y + multiSelectionBounds.height + 12
+                  : multiSelectionBounds.y - 44
+              ),
               transform: "translateX(-50%)",
               background: "var(--panel)",
               borderColor: "var(--line)",

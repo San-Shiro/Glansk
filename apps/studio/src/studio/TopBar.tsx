@@ -14,6 +14,8 @@ import {
   Play,
   Monitor,
   Trash2,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import type { CanvasSummary, RuntimeStatus, CanvasVariableDefinition } from "@/lib/types";
 import { Spinner } from "@/components/ui";
@@ -55,6 +57,10 @@ interface Props {
   logicalSize?: { width: number; height: number };
   onUpdateCanvasSize?: (w: number, h: number) => void;
   onSwitchVersion?: (version: "v1" | "v2") => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }
 
 export default function TopBar(p: Props) {
@@ -205,6 +211,30 @@ export default function TopBar(p: Props) {
               title="Currently using Studio v2"
             >
               v2
+            </button>
+          </div>
+        )}
+
+        {/* Undo / Redo Actions */}
+        {(p.onUndo || p.onRedo) && (
+          <div className="flex items-center gap-0.5 ml-1 border-l pl-2" style={{ borderColor: "var(--line)" }}>
+            <button
+              type="button"
+              onClick={p.onUndo}
+              disabled={!p.canUndo}
+              title="Undo (Ctrl+Z)"
+              className="h-7 w-7 grid place-items-center rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] disabled:opacity-25 disabled:pointer-events-none transition-colors"
+            >
+              <Undo2 size={13} />
+            </button>
+            <button
+              type="button"
+              onClick={p.onRedo}
+              disabled={!p.canRedo}
+              title="Redo (Ctrl+Y or Ctrl+Shift+Z)"
+              className="h-7 w-7 grid place-items-center rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] disabled:opacity-25 disabled:pointer-events-none transition-colors"
+            >
+              <Redo2 size={13} />
             </button>
           </div>
         )}

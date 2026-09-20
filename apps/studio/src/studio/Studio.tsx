@@ -69,11 +69,20 @@ export default function Studio({ initialCanvasId, onExit, onNavigateCanvas, onSw
     setZoom(clamp(Math.min((el.clientWidth - 80) / cd.logicalSize.width, (el.clientHeight - 80) / cd.logicalSize.height), 0.1, 2));
   }, [doc]);
 
+  // Undo / Redo history stacks (stores up to 50 historical snapshots)
+  const undoStackRef = useRef<CanvasDocument[]>([]);
+  const redoStackRef = useRef<CanvasDocument[]>([]);
+
   // load workspace into editable state
   useEffect(() => {
     if (!workspaceQ.data) return;
     const d = structuredClone(workspaceQ.data.draft.document) as CanvasDocument;
-    setDoc(d); setDraftRevision(workspaceQ.data.draft.draftRevision); setDirty(false); setSelectedWidgetIds([]);
+    setDoc(d);
+    setDraftRevision(workspaceQ.data.draft.draftRevision);
+    setDirty(false);
+    setSelectedWidgetIds([]);
+    undoStackRef.current = [];
+    redoStackRef.current = [];
     localStorage.setItem(LAST_KEY, d.id);
     requestAnimationFrame(() => fitZoom(d));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -86,10 +95,52 @@ export default function Studio({ initialCanvasId, onExit, onNavigateCanvas, onSw
   }, [fitZoom]);
 
   // ---- local document mutations ----
-  const edit = useCallback((fn: (d: CanvasDocument) => void) => {
-    setDoc(prev => { if (!prev) return prev; const next = structuredClone(prev); fn(next); return next; });
-    setDirty(true); setRev(r => r + 1);
+  const edit = useCallback((fn: (d: CanvasDocument) => void, recordHistory = true) => {
+    setDoc(prev => {
+      if (!prev) return prev;
+      if (recordHistory) {
+        undoStackRef.current.push(structuredClone(prev));
+        if (undoStackRef.current.length > 50) {
+          undoStackRef.current.shift();
+        }
+        redoStackRef.current = [];
+      }
+      const next = structuredClone(prev);
+      fn(next);
+      return next;
+    });
+    setDirty(true);
+    setRev(r => r + 1);
   }, []);
+
+  const undo = useCallback(() => {
+    if (undoStackRef.current.length === 0) return;
+    setDoc(current => {
+      if (!current) return current;
+      const prevDoc = undoStackRef.current.pop();
+      if (!prevDoc) return current;
+      redoStackRef.current.push(structuredClone(current));
+      return prevDoc;
+    });
+    setDirty(true);
+    setRev(r => r + 1);
+    flash("Undo");
+  }, [flash]);
+
+  const redo = useCallback(() => {
+    if (redoStackRef.current.length === 0) return;
+    setDoc(current => {
+      if (!current) return current;
+      const nextDoc = redoStackRef.current.pop();
+      if (!nextDoc) return current;
+      undoStackRef.current.push(structuredClone(current));
+      return nextDoc;
+    });
+    setDirty(true);
+    setRev(r => r + 1);
+    flash("Redo");
+  }, [flash]);
+
   const nextZ = (d: CanvasDocument) => (d.widgets.reduce((m, w) => Math.max(m, w.geometry.zIndex), 0) + 1);
 
   const addWidget = useCallback((item: CatalogItem, x?: number, y?: number) => {
@@ -142,19 +193,66 @@ export default function Studio({ initialCanvasId, onExit, onNavigateCanvas, onSw
   }, [edit]);
 
   const updateConfig = useCallback((id: string, config: Record<string, JsonValue>) => edit(d => { const w = d.widgets.find(w => w.id === id); if (w) w.config = config; }), [edit]);
+
   const deleteWidget = useCallback((id: string) => { 
     edit(d => { 
-      d.widgets = d.widgets.filter(w => w.id !== id); 
-      d.groups = d.groups?.filter(g => g.id !== id);
+      const isGroup = d.groups?.some(g => g.id === id);
+      if (isGroup) {
+        // Cascade delete group and all member widgets inside it
+        d.widgets = d.widgets.filter(w => w.groupId !== id);
+        d.groups = d.groups?.filter(g => g.id !== id);
+      } else {
+        d.widgets = d.widgets.filter(w => w.id !== id); 
+        d.groups = d.groups?.filter(g => g.id !== id);
+        // Prune empty groups where all member widgets were deleted
+        if (d.groups) {
+          d.groups = d.groups.filter(g => d.widgets.some(w => w.groupId === g.id));
+        }
+      }
     }); 
     setSelectedWidgetIds(s => s.filter(x => x !== id)); 
     setSelectedGroupId(s => (s === id ? null : s));
   }, [edit]);
 
   const duplicateWidget = useCallback((id: string) => edit(d => {
+    // If duplicating a group, duplicate group container and clone its members
+    const grp = d.groups?.find(g => g.id === id);
+    if (grp) {
+      const newGrpId = `group-${Date.now().toString(36)}`;
+      const newGroup: CanvasGroup = {
+        ...structuredClone(grp),
+        id: newGrpId,
+        name: `${grp.name} (Copy)`,
+        geometry: {
+          ...grp.geometry,
+          x: grp.geometry.x + 24,
+          y: grp.geometry.y + 24,
+          zIndex: nextZ(d),
+        },
+      };
+      const memberWidgets = d.widgets.filter(w => w.groupId === id);
+      for (const mw of memberWidgets) {
+        const copy = structuredClone(mw);
+        copy.id = `${mw.widgetId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`.slice(0, 40);
+        copy.groupId = newGrpId;
+        d.widgets.push(copy);
+      }
+      d.groups = d.groups || [];
+      d.groups.push(newGroup);
+      setSelectedGroupId(newGrpId);
+      setSelectedWidgetIds([]);
+      return;
+    }
     const w = d.widgets.find(w => w.id === id); if (!w) return;
     const copy = structuredClone(w); copy.id = `${w.widgetId}-${Date.now().toString(36)}`.slice(0, 40);
     copy.geometry = { ...w.geometry, x: w.geometry.x + 24, y: w.geometry.y + 24, zIndex: nextZ(d) };
+    if (copy.groupId) {
+      const parent = d.groups?.find(g => g.id === copy.groupId);
+      if (parent) {
+        parent.geometry.width = Math.max(parent.geometry.width, copy.geometry.x + copy.geometry.width + 12);
+        parent.geometry.height = Math.max(parent.geometry.height, copy.geometry.y + copy.geometry.height + 12);
+      }
+    }
     d.widgets.push(copy); setSelectedWidgetIds([copy.id]); setSelectedGroupId(null);
   }), [edit]);
 
@@ -201,6 +299,13 @@ export default function Studio({ initialCanvasId, onExit, onNavigateCanvas, onSw
             y: w.geometry.y + 24,
             zIndex: nextZ(d),
           };
+          if (copy.groupId) {
+            const parent = d.groups?.find(g => g.id === copy.groupId);
+            if (parent) {
+              parent.geometry.width = Math.max(parent.geometry.width, copy.geometry.x + copy.geometry.width + 12);
+              parent.geometry.height = Math.max(parent.geometry.height, copy.geometry.y + copy.geometry.height + 12);
+            }
+          }
           d.widgets.push(copy);
           newIds.push(copy.id);
         }
@@ -215,6 +320,9 @@ export default function Studio({ initialCanvasId, onExit, onNavigateCanvas, onSw
     } else if (selectedWidgetIds.length > 0) {
       edit(d => {
         d.widgets = d.widgets.filter(w => !selectedWidgetIds.includes(w.id));
+        if (d.groups) {
+          d.groups = d.groups.filter(g => d.widgets.some(w => w.groupId === g.id));
+        }
       });
       setSelectedWidgetIds([]);
     }
@@ -268,12 +376,14 @@ export default function Studio({ initialCanvasId, onExit, onNavigateCanvas, onSw
         },
       };
 
-      for (const w of widgetsToGroup) {
+      const sortedByZ = [...widgetsToGroup].sort((a, b) => (a.geometry.zIndex || 0) - (b.geometry.zIndex || 0));
+      sortedByZ.forEach((w, idx) => {
         const abs = getAbs(w);
         w.groupId = grpId;
         w.geometry.x = Math.round(abs.x - minX);
         w.geometry.y = Math.round(abs.y - minY);
-      }
+        w.geometry.zIndex = idx + 1;
+      });
 
       d.groups.push(newGroup);
 
@@ -297,6 +407,7 @@ export default function Studio({ initialCanvasId, onExit, onNavigateCanvas, onSw
         if (w.groupId === groupId) {
           w.geometry.x = Math.round(grp.geometry.x + w.geometry.x);
           w.geometry.y = Math.round(grp.geometry.y + w.geometry.y);
+          w.geometry.zIndex = (grp.geometry.zIndex || 0) + (w.geometry.zIndex || 0);
           delete w.groupId;
           childIds.push(w.id);
         }
@@ -552,6 +663,8 @@ export default function Studio({ initialCanvasId, onExit, onNavigateCanvas, onSw
     setDoc(structuredClone(baseDoc));
     setDraftRevision(workspaceQ.data.draft.draftRevision);
     setDirty(false);
+    undoStackRef.current = [];
+    redoStackRef.current = [];
     flash("Draft changes discarded");
   }, [workspaceQ.data, flash]);
 
@@ -578,7 +691,7 @@ export default function Studio({ initialCanvasId, onExit, onNavigateCanvas, onSw
     const handleKeyDown = (e: KeyboardEvent) => {
       if (showCreate) return;
       const target = e.target as HTMLElement;
-      const isInput = ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName) || target?.isContentEditable;
+      const isInput = Boolean(target?.closest?.("input, textarea, select, [contenteditable='true'], [role='textbox']")) || target?.isContentEditable;
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
@@ -589,6 +702,22 @@ export default function Studio({ initialCanvasId, onExit, onNavigateCanvas, onSw
       }
 
       if (isInput) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
+        e.preventDefault();
+        redo();
+        return;
+      }
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
         e.preventDefault();
@@ -640,8 +769,8 @@ export default function Studio({ initialCanvasId, onExit, onNavigateCanvas, onSw
             edit((d) => {
               const grp = d.groups?.find((g) => g.id === selectedGroupId);
               if (grp) {
-                grp.geometry.x = clamp(grp.geometry.x + dx, 0, d.logicalSize.width - grp.geometry.width);
-                grp.geometry.y = clamp(grp.geometry.y + dy, 0, d.logicalSize.height - grp.geometry.height);
+                grp.geometry.x = clamp(grp.geometry.x + dx, 0, Math.max(0, d.logicalSize.width - grp.geometry.width));
+                grp.geometry.y = clamp(grp.geometry.y + dy, 0, Math.max(0, d.logicalSize.height - grp.geometry.height));
               }
             });
           } else if (selectedWidgetIds.length > 0) {
@@ -655,12 +784,12 @@ export default function Studio({ initialCanvasId, onExit, onNavigateCanvas, onSw
                       w.geometry.x = clamp(w.geometry.x + dx, 0, Math.max(0, parentGrp.geometry.width - w.geometry.width));
                       w.geometry.y = clamp(w.geometry.y + dy, 0, Math.max(0, parentGrp.geometry.height - w.geometry.height));
                     } else {
-                      w.geometry.x = clamp(w.geometry.x + dx, 0, d.logicalSize.width - w.geometry.width);
-                      w.geometry.y = clamp(w.geometry.y + dy, 0, d.logicalSize.height - w.geometry.height);
+                      w.geometry.x = clamp(w.geometry.x + dx, 0, Math.max(0, d.logicalSize.width - w.geometry.width));
+                      w.geometry.y = clamp(w.geometry.y + dy, 0, Math.max(0, d.logicalSize.height - w.geometry.height));
                     }
                   } else {
-                    w.geometry.x = clamp(w.geometry.x + dx, 0, d.logicalSize.width - w.geometry.width);
-                    w.geometry.y = clamp(w.geometry.y + dy, 0, d.logicalSize.height - w.geometry.height);
+                    w.geometry.x = clamp(w.geometry.x + dx, 0, Math.max(0, d.logicalSize.width - w.geometry.width));
+                    w.geometry.y = clamp(w.geometry.y + dy, 0, Math.max(0, d.logicalSize.height - w.geometry.height));
                   }
                 }
               }
@@ -672,7 +801,7 @@ export default function Studio({ initialCanvasId, onExit, onNavigateCanvas, onSw
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentId, doc, saveMut, selectedWidgetIds, selectedGroupId, groupSelected, ungroup, duplicateSelected, deleteSelected, fitZoom, edit]);
+  }, [currentId, doc, saveMut, selectedWidgetIds, selectedGroupId, groupSelected, ungroup, duplicateSelected, deleteSelected, fitZoom, edit, undo, redo]);
 
   const selectedWidget = doc?.widgets.find(w => w.id === selectedId);
 
@@ -712,6 +841,10 @@ export default function Studio({ initialCanvasId, onExit, onNavigateCanvas, onSw
         logicalSize={doc?.logicalSize}
         onUpdateCanvasSize={(w, h) => updateCanvas({ logicalSize: { width: w, height: h } })}
         onSwitchVersion={onSwitchVersion}
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={undoStackRef.current.length > 0}
+        canRedo={redoStackRef.current.length > 0}
       />
 
       {/* 2. Workspace Body: Left Sidebar + Canvas Viewport + Contextual Inspector */}

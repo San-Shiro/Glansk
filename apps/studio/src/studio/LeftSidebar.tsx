@@ -168,9 +168,8 @@ export default function LeftSidebar({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
-      if (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) || target.isContentEditable) {
-        return;
-      }
+      const isInput = Boolean(target?.closest?.("input, textarea, select, [contenteditable='true'], [role='textbox']")) || target?.isContentEditable;
+      if (isInput) return;
       if (!e.altKey || e.ctrlKey || e.metaKey) return;
 
       const key = e.key;
