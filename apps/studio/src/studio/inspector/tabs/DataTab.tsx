@@ -41,9 +41,11 @@ export default function DataTab({ widget, doc, onUpdateConfig }: Props) {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  // Find bindable properties from schema
-  const schema = (def as any).schema || (def as any).configSchema || {};
-  const schemaKeys = Object.keys(schema);
+  // Find bindable properties from schema (supports both WidgetConfigField[] and Record<string, WidgetConfigField>)
+  const rawSchema = (def as any).schema || (def as any).configSchema || [];
+  const fields: Array<{ key: string; label?: string; type?: string; default?: any }> = Array.isArray(rawSchema)
+    ? rawSchema
+    : Object.entries(rawSchema).map(([key, val]: [string, any]) => ({ key, ...val }));
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -62,25 +64,25 @@ export default function DataTab({ widget, doc, onUpdateConfig }: Props) {
             Connect widget inputs to canvas variables (<code className="font-mono text-[var(--accent)]">var:</code>) or other widgets (<code className="font-mono text-[var(--accent)]">wig:</code>).
           </p>
 
-          {schemaKeys.length === 0 ? (
+          {fields.length === 0 ? (
             <div className="text-xs text-[var(--ink-3)] italic py-2">
               No bindable schema properties on this widget.
             </div>
           ) : (
-            schemaKeys.map((propKey) => {
-              const fieldMeta = schema[propKey] || {};
+            fields.map((field) => {
+              const propKey = field.key;
               const currentVal = cfg[propKey];
               return (
                 <div key={propKey} className="p-2 rounded-lg border bg-[var(--panel-2)] space-y-1" style={{ borderColor: "var(--line)" }}>
                   <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-semibold text-[var(--ink)]">{fieldMeta.label || propKey}</span>
-                    <span className="text-[10px] font-mono text-[var(--ink-3)]">{fieldMeta.type || "string"}</span>
+                    <span className="font-semibold text-[var(--ink)]">{field.label || propKey}</span>
+                    <span className="text-[10px] font-mono text-[var(--ink-3)]">{field.type || "string"}</span>
                   </div>
                   <DynamicBindingControl
-                    label={fieldMeta.label || propKey}
+                    label={field.label || propKey}
                     value={currentVal as any}
-                    fallbackDefault={fieldMeta.default ?? ""}
-                    type={fieldMeta.type === "number" ? "number" : fieldMeta.type === "boolean" ? "boolean" : "string"}
+                    fallbackDefault={field.default ?? ""}
+                    type={field.type === "number" ? "number" : field.type === "boolean" ? "boolean" : "string"}
                     variables={doc.variables}
                     onChange={(nextVal) => handleBindingChange(propKey, nextVal as JsonValue)}
                   >

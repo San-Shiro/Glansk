@@ -1,23 +1,28 @@
 import React from "react";
-import type { WidgetInstance, JsonValue } from "@/lib/types";
+import type { WidgetInstance, JsonValue, CanvasDocument } from "@/lib/types";
 import { getWidgetDefinition } from "@shared/widget-definitions.js";
 import { SchemaFields } from "@/studio/controls";
 
 interface Props {
   widget: WidgetInstance;
+  doc?: CanvasDocument;
   onUpdateConfig: (id: string, config: Record<string, JsonValue>) => void;
   vaultKeys?: string[];
 }
 
-export default function ConfigTab({ widget, onUpdateConfig, vaultKeys = [] }: Props) {
+export default function ConfigTab({ widget, doc, onUpdateConfig, vaultKeys = [] }: Props) {
   const def = getWidgetDefinition(widget.widgetId);
   const cfg = widget.config || {};
 
   const handleFieldChange = (patch: Record<string, JsonValue>) => {
-    onUpdateConfig(widget.id, {
+    const nextCfg: Record<string, JsonValue> = {
       ...cfg,
       ...patch,
-    });
+    };
+    if (widget.widgetId === "label" && patch.text !== undefined) {
+      nextCfg.label = patch.text;
+    }
+    onUpdateConfig(widget.id, nextCfg);
   };
 
   const schema = def.configSchema || [];
@@ -42,6 +47,7 @@ export default function ConfigTab({ widget, onUpdateConfig, vaultKeys = [] }: Pr
             config={cfg}
             onChange={handleFieldChange}
             vaultKeys={vaultKeys}
+            variables={doc?.variables}
           />
         </div>
       ) : (

@@ -466,13 +466,25 @@ export function renderCanvas(host, doc, options = {}) {
  */
 export function applyTileAppearance(tile, widget, theme = {}) {
   const app = widget.config?.appearance;
-  const isCard = (app?.frame === 'card' || app?.showBoundingBox === true || widget.config?.frame === 'card') &&
-    app?.showBoundingBox !== false && app?.frame !== 'none' && !app?.frameless && widget.config?.frameless !== true;
+  const hasCardStyle = (
+    app?.frame === 'card' ||
+    app?.showBoundingBox === true ||
+    widget.config?.frame === 'card' ||
+    (Number(app?.borderWidth) > 0) ||
+    app?.transparentBg === false ||
+    Boolean(app?.presetId)
+  );
+  const isCard = (hasCardStyle || app?.frame === 'card') &&
+    app?.showBoundingBox !== false &&
+    app?.frame !== 'none' &&
+    !app?.frameless &&
+    widget.config?.frameless !== true;
 
   if (!isCard) {
     tile.dataset.frame = 'none';
     tile.dataset.boundingBox = 'false';
     tile.style.setProperty('--tile-bg', 'transparent');
+    tile.style.setProperty('--tile-bg-gradient', 'none');
     tile.style.setProperty('--tile-border', 'none');
     tile.style.setProperty('--tile-border-color', 'transparent');
     tile.style.setProperty('--tile-shadow', 'none');
@@ -525,9 +537,11 @@ export function applyTileAppearance(tile, widget, theme = {}) {
 
     if (app.transparentBg && isCard) {
       tile.style.setProperty('--tile-bg', 'transparent');
+      tile.style.setProperty('--tile-bg-gradient', 'none');
       tile.style.setProperty('--tile-shadow', 'none');
     } else if (isCard) {
       tile.style.removeProperty('--tile-bg');
+      tile.style.removeProperty('--tile-bg-gradient');
       tile.style.removeProperty('--tile-shadow');
     }
 
@@ -569,7 +583,7 @@ export function applyTileAppearance(tile, widget, theme = {}) {
     }
 
     // Design Preset Application (Curated Palettes)
-    if (app.followCanvasTheme === false && app.presetId && BUILTIN_DESIGN_PRESETS[app.presetId]) {
+    if ((app.followCanvasTheme === false || app.presetId) && app.presetId && BUILTIN_DESIGN_PRESETS[app.presetId]) {
       const presetVars = resolvePresetCssVariables(BUILTIN_DESIGN_PRESETS[app.presetId]);
       for (const [k, v] of Object.entries(presetVars)) {
         tile.style.setProperty(k, v);

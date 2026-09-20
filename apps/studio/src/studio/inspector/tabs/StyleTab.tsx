@@ -59,10 +59,25 @@ export default function StyleTab({
   };
 
   const updateApp = (patch: Partial<WidgetAppearance>) => {
+    // Automatically activate card frame mode when border, radius, background, or presets are styled
+    const isStylingSurface =
+      patch.borderWidth !== undefined ||
+      patch.borderColor !== undefined ||
+      patch.borderRadius !== undefined ||
+      patch.padding !== undefined ||
+      patch.presetId !== undefined ||
+      (patch.transparentBg === false);
+
+    const nextFrame = patch.frame !== undefined 
+      ? patch.frame 
+      : (isStylingSurface && app.frame === "none" ? "card" : app.frame);
+
     onUpdateConfig(widget.id, {
       ...cfg,
       appearance: {
         ...app,
+        frame: nextFrame,
+        showBoundingBox: nextFrame === "card",
         ...patch,
       } as unknown as JsonValue,
     });
@@ -104,7 +119,10 @@ export default function StyleTab({
     };
     const rVal = preset.geometry?.radius ? radiusMap[preset.geometry.radius] ?? 8 : 8;
     updateApp({
+      frame: "card",
+      showBoundingBox: true,
       presetId: presetKey,
+      followCanvasTheme: false,
       borderColor: preset.palette.border,
       borderWidth: preset.geometry?.borderWidth ?? 1,
       borderStyle: "solid",
@@ -250,6 +268,24 @@ export default function StyleTab({
       {/* 4. Corners & Borders */}
       <AccordionSection title="Corners & Borders" defaultOpen>
         <div className="space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: "var(--line)" }}>
+            <div>
+              <span className="text-xs font-semibold text-[var(--ink)]">Card Container Frame</span>
+              <p className="text-[10px] text-[var(--ink-3)]">Enables card background, borders, and shadows</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={app.frame === "card"}
+              onChange={(e) =>
+                updateApp({
+                  frame: e.target.checked ? "card" : "none",
+                  showBoundingBox: e.target.checked,
+                })
+              }
+              className="rounded border-[var(--line)] text-[var(--accent)] focus:ring-0"
+            />
+          </div>
+
           <CornerRadiusControl
             value={app.borderRadius ?? 0}
             onChange={(val: any) => updateApp({ borderRadius: val })}

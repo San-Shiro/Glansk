@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import type { JsonValue } from "@/lib/types";
 import type { InspectorProps, InspectorTab } from "./types";
 import { getWidgetDefinition } from "@shared/widget-definitions.js";
 import ConfigTab from "./tabs/ConfigTab";
@@ -211,13 +212,17 @@ export default function InspectorRoot(p: InspectorProps) {
   // Widget selected
   const def = getWidgetDefinition(widget!.widgetId);
   const cfg = widget!.config || {};
-  const currentLabel = (cfg.label as string) || def.title || widget!.widgetId;
+  const currentLabel = (cfg.label as string) || (cfg.text as string) || def.title || widget!.widgetId;
 
   const handleRename = (nextLabel: string) => {
-    p.onUpdateConfig(widget!.id, {
+    const patch: Record<string, JsonValue> = {
       ...cfg,
       label: nextLabel,
-    });
+    };
+    if (widget!.widgetId === "label") {
+      patch.text = nextLabel;
+    }
+    p.onUpdateConfig(widget!.id, patch);
   };
 
   const isEnabled = !widget!.disabled;
@@ -369,6 +374,7 @@ export default function InspectorRoot(p: InspectorProps) {
           {activeTab === "config" && (
             <ConfigTab
               widget={widget!}
+              doc={p.doc}
               onUpdateConfig={p.onUpdateConfig}
               vaultKeys={vaultKeys}
             />
