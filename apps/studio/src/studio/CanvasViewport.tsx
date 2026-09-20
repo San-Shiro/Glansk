@@ -952,6 +952,8 @@ export default function CanvasViewport({
         onDropWidget(payload, snapX, snapY);
       }}
     >
+      {/* Wrapper: contains artboard + floating bars so bars scroll with artboard but aren't clipped */}
+      <div className="relative shrink-0">
       {/* Centered Canvas Artboard */}
       <div
         data-artboard="true"
@@ -1156,17 +1158,10 @@ export default function CanvasViewport({
         </div>
       </div>
 
-      {/* Floating Selection Bars — rendered outside artboard to avoid overflow:hidden clipping */}
+      {/* Floating Selection Bars — absolute within wrapper, outside artboard overflow:hidden */}
       <div
-        className="absolute pointer-events-none"
-        style={{
-          left: "50%",
-          top: "50%",
-          width: LW * zoom,
-          height: LH * zoom,
-          transform: "translate(-50%, -50%)",
-          zIndex: 60,
-        }}
+        className="absolute inset-0 pointer-events-none"
+        style={{ zIndex: 60 }}
       >
         {/* 1. Floating Selection Context Bar (Single Item) */}
         {selectionBounds && !interactiveMode && activeWidgetIds.length <= 1 && (
@@ -1357,6 +1352,7 @@ export default function CanvasViewport({
           </div>
         )}
       </div>
+      </div>{/* close wrapper */}
 
       {/* 3. Floating Bottom Canvas Dock */}
       <div

@@ -1,10 +1,11 @@
 import { join, resolve } from "node:path";
-import { readdir, readFile, writeFile, mkdir, rm, stat } from "node:fs/promises";
+import { readdir, readFile, writeFile, mkdir, rm, stat, rename } from "node:fs/promises";
 import {
   type PackageManifest,
   type PackageKind,
   type WidgetDescriptor,
   type EmitterDescriptor,
+  type PackageSigner,
   validatePackage,
 } from "../../platform/package-validator";
 import { extractZip, createZip } from "../../platform/archive";
@@ -13,9 +14,29 @@ import { registerPackageWidget as registerSharedWidget, unregisterPackage as unr
 import { normalizeManifestToV2, type PackageManifestV2, type LegacyAlias } from "../../platform/package-manifest-v2";
 import { type WidgetDesignPreset } from "../../platform/design-preset-schema";
 
+export class SignerMismatchError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SignerMismatchError";
+  }
+}
+
+export class PackageDowngradeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PackageDowngradeError";
+  }
+}
+
+export interface ImportPackageOptions {
+  allowUnsigned?: boolean;
+  allowDowngrade?: boolean;
+}
+
 export interface PackageRecord {
   id: string;
   version: string;
+  versionCode?: number | undefined;
   name: string;
   kind: PackageKind;
   description: string;
@@ -24,6 +45,9 @@ export interface PackageRecord {
   files: Record<string, string>;
   capabilities: any;
   signature?: string | undefined;
+  signerFingerprint?: string | undefined;
+  signerPublicKey?: string | undefined;
+  signer?: PackageSigner | undefined;
   keyId?: string | undefined;
   trusted: boolean;
   installedAt: string;
@@ -116,6 +140,7 @@ export class PackageService {
             const record: PackageRecord = {
               id: manifest.id,
               version: manifest.version,
+              versionCode: manifest.versionCode,
               name: manifest.name || manifest.id,
               kind: manifest.kind || (manifest.emitters && manifest.widgets ? "composite" : manifest.emitters ? "emitter" : "widget"),
               description: manifest.description || "",
@@ -124,8 +149,11 @@ export class PackageService {
               files: manifest.files || {},
               capabilities: manifest.capabilities || [],
               signature: manifest.signature,
+              signerFingerprint: manifest.signer?.fingerprint,
+              signerPublicKey: manifest.signer?.publicKey,
+              signer: manifest.signer,
               keyId: manifest.keyId,
-              trusted: Boolean(manifest.signature),
+              trusted: Boolean(manifest.signature || manifest.signer),
               installedAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
               widgets: manifest.widgets,
@@ -285,6 +313,7 @@ export class PackageService {
       schemaVersion: 1,
       id: rawManifest.id,
       version: rawManifest.version || "1.0.0",
+      ...(rawManifest.versionCode !== undefined ? { versionCode: rawManifest.versionCode } : {}),
       name: rawManifest.name || rawManifest.id,
       kind,
       description: rawManifest.description || "",
@@ -292,6 +321,7 @@ export class PackageService {
       ...(rawManifest.entry ? { entry: rawManifest.entry } : {}),
       files: fileHashes,
       capabilities: rawManifest.capabilities || [],
+      ...(rawManifest.signer ? { signer: rawManifest.signer } : {}),
       ...(rawManifest.widgets ? { widgets: rawManifest.widgets } : {}),
       ...(rawManifest.emitters ? { emitters: rawManifest.emitters } : {}),
     };
@@ -339,6 +369,7 @@ export class PackageService {
     const record: PackageRecord = {
       id: manifest.id,
       version: manifest.version,
+      versionCode: manifest.versionCode,
       name: manifest.name || manifest.id,
       kind: manifest.kind || "widget",
       description: manifest.description || "",
@@ -347,6 +378,9 @@ export class PackageService {
       files: manifest.files,
       capabilities: manifest.capabilities,
       signature: manifest.signature,
+      signerFingerprint: validation.signerFingerprint || manifest.signer?.fingerprint,
+      signerPublicKey: validation.signerPublicKey || manifest.signer?.publicKey,
+      signer: manifest.signer,
       keyId: manifest.keyId,
       trusted: validation.trusted,
       installedAt: new Date().toISOString(),
@@ -364,7 +398,17 @@ export class PackageService {
     return record;
   }
 
-  public async importFromZip(archiveData: Uint8Array, allowUnsigned = true): Promise<PackageRecord> {
+  public async importFromZip(
+    archiveData: Uint8Array,
+    optionsOrAllowUnsigned: boolean | ImportPackageOptions = true
+  ): Promise<PackageRecord> {
+    const options: ImportPackageOptions =
+      typeof optionsOrAllowUnsigned === "boolean"
+        ? { allowUnsigned: optionsOrAllowUnsigned, allowDowngrade: false }
+        : { allowUnsigned: true, allowDowngrade: false, ...optionsOrAllowUnsigned };
+    const allowUnsigned = options.allowUnsigned !== false;
+    const allowDowngrade = options.allowDowngrade === true;
+
     const extracted = extractZip(archiveData);
 
     const manifestBytes = extracted.get("manifest.json");
@@ -383,33 +427,72 @@ export class PackageService {
     // Validate package
     const validation = await validatePackage(manifest, extracted, new Map(), allowUnsigned);
 
-    // Write to disk
-    const targetDir = join(this.packagesDir, manifest.id);
-    await rm(targetDir, { recursive: true, force: true });
-    await mkdir(targetDir, { recursive: true });
+    // Origin Continuity (Signer Pinning) and Anti-Rollback (Downgrade Prevention)
+    const existing = this.records.get(manifest.id);
+    if (existing) {
+      // 1. Signer Pinning: If an installed package was signed, any update must have the exact same signer fingerprint
+      if (existing.signerFingerprint) {
+        const newFingerprint = validation.signerFingerprint || manifest.signer?.fingerprint;
+        if (!newFingerprint || newFingerprint.toLowerCase() !== existing.signerFingerprint.toLowerCase()) {
+          throw new SignerMismatchError(
+            `Update rejected: package signer does not match installed developer origin for '${manifest.id}'. Installed: ${existing.signerFingerprint}, Provided: ${newFingerprint ?? "unsigned"}`
+          );
+        }
+      }
 
-    for (const [name, data] of extracted.entries()) {
-      const fullPath = join(targetDir, name);
-      const parent = resolve(fullPath, "..");
-      await mkdir(parent, { recursive: true });
-      await writeFile(fullPath, data);
+      // 2. Anti-Rollback: Monotonic versionCode check
+      if (existing.versionCode !== undefined && manifest.versionCode !== undefined) {
+        if (manifest.versionCode < existing.versionCode) {
+          if (!allowDowngrade) {
+            throw new PackageDowngradeError(
+              `Cannot downgrade package '${manifest.id}' from versionCode ${existing.versionCode} to ${manifest.versionCode}. Enable downgrade override to proceed.`
+            );
+          }
+        }
+      }
+    }
+
+    // Atomic disk extraction using temporary staging directory
+    const targetDir = join(this.packagesDir, manifest.id);
+    const stagingDir = join(this.packagesDir, `.tmp-pkg-${manifest.id}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`);
+
+    try {
+      await mkdir(stagingDir, { recursive: true });
+
+      for (const [name, data] of extracted.entries()) {
+        const fullPath = join(stagingDir, name);
+        const parent = resolve(fullPath, "..");
+        await mkdir(parent, { recursive: true });
+        await writeFile(fullPath, data);
+      }
+
+      // Staging write succeeded; atomically replace targetDir
+      await rm(targetDir, { recursive: true, force: true });
+      await rename(stagingDir, targetDir);
+    } catch (err) {
+      await rm(stagingDir, { recursive: true, force: true }).catch(() => {});
+      throw err;
     }
 
     const v2 = normalizeManifestToV2(manifest);
     const record: PackageRecord = {
       id: manifest.id,
       version: manifest.version,
+      versionCode: manifest.versionCode,
       name: manifest.name || manifest.id,
       kind: manifest.kind || (manifest.emitters && manifest.widgets ? "composite" : manifest.emitters ? "emitter" : "widget"),
       description: manifest.description || "",
-      author: manifest.author || "Unknown",
+      author: typeof manifest.author === "string" ? manifest.author : (manifest.author?.name || "Unknown"),
       entry: manifest.entry,
       files: manifest.files,
       capabilities: manifest.capabilities || [],
       signature: manifest.signature,
+      signerFingerprint: validation.signerFingerprint || manifest.signer?.fingerprint,
+      signerPublicKey: validation.signerPublicKey || manifest.signer?.publicKey,
+      signer: manifest.signer,
       keyId: manifest.keyId,
       trusted: validation.trusted,
-      installedAt: new Date().toISOString(),
+      installedAt: existing?.installedAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       widgets: manifest.widgets,
       emitters: manifest.emitters,
@@ -418,13 +501,19 @@ export class PackageService {
       aliases: v2.aliases,
     };
 
+    if (existing) {
+      this.unregisterRuntimeArtifacts(manifest.id);
+    }
     this.records.set(manifest.id, record);
     this.registerRuntimeArtifacts(record);
 
     return record;
   }
 
-  public async importFromUrl(url: string, allowUnsigned = true): Promise<PackageRecord> {
+  public async importFromUrl(
+    url: string,
+    optionsOrAllowUnsigned: boolean | ImportPackageOptions = true
+  ): Promise<PackageRecord> {
     if (!url.startsWith("http://") && !url.startsWith("https://")) {
       throw new Error("Invalid URL: must be HTTP or HTTPS");
     }
@@ -442,12 +531,12 @@ export class PackageService {
       const buf = new Uint8Array(await res.arrayBuffer());
 
       if (contentType.includes("application/zip") || url.endsWith(".zip") || url.endsWith(".glpkg")) {
-        return await this.importFromZip(buf, allowUnsigned);
+        return await this.importFromZip(buf, optionsOrAllowUnsigned);
       }
 
       // Check for ZIP magic bytes (PK\x03\x04)
       if (buf.length >= 4 && buf[0] === 0x50 && buf[1] === 0x4B && buf[2] === 0x03 && buf[3] === 0x04) {
-        return await this.importFromZip(buf, allowUnsigned);
+        return await this.importFromZip(buf, optionsOrAllowUnsigned);
       }
 
       throw new Error("Unsupported remote package format: must be a ZIP or .glpkg archive");

@@ -262,17 +262,30 @@ if (widget.display) {
 
 ---
 
-## CLI Tooling (`ld-widget` / `gl-widget`)
+## CLI Tooling (`glansk-widget` / `gl-widget`)
 
-The package includes CLI tools for validating and packaging widget suites:
+The package includes CLI tools for key generation, cryptographic signing, packaging, and archive integrity verification:
 
 ```bash
-# Validate widget package structure and manifest
-npx gl-widget validate ./my-widget-package
+# 1. Generate an Ed25519 Developer Keypair
+bunx glansk-widget keygen --out ./keys --name developer
+# Outputs: ./keys/developer.private.key, ./keys/developer.public.key
+# Displays Developer Origin Identity (e.g. SHA256:7f3a...)
 
-# Pack widget into a deployable .glpkg archive
-npx gl-widget pack ./my-widget-package ./dist/my-package-1.0.0.glpkg
+# 2. Package and Cryptographically Sign a .glpkg Archive
+bunx glansk-widget pack ./my-widget-package \
+  --sign ./keys/developer.private.key \
+  --version-code 120 \
+  --out ./dist/my-package-1.2.0.glpkg
+
+# 3. Verify Package Integrity & Developer Origin
+bunx glansk-widget verify ./dist/my-package-1.2.0.glpkg
 ```
+
+### Security Guarantees
+- **Origin Continuity (Signer Pinning)**: Once installed, package upgrades MUST be signed by the identical developer key. Unauthorized origin updates are rejected by the Glansk platform.
+- **Anti-Rollback (`versionCode`)**: Monotonic positive 32-bit integer ($1 \le \text{versionCode} \le 2,147,483,647$). Downgrades are blocked by default to prevent rollback attacks unless administrative override `allowDowngrade: true` is supplied.
+- **Bidirectional File Verification**: Unlisted file injections or archive digest mismatches are rejected before extraction.
 
 ---
 

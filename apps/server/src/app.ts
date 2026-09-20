@@ -485,7 +485,8 @@ export function createApp(dependencies: AppDependencies): (request: Request) => 
           try {
             const contentTypeHeader = request.headers.get("content-type") || "";
             let archiveBytes: Uint8Array;
-            let allowUnsigned = true;
+            let allowUnsigned = url.searchParams.get("allowUnsigned") !== "false";
+            let allowDowngrade = url.searchParams.get("allowDowngrade") === "true";
 
             if (contentTypeHeader.includes("multipart/form-data")) {
               const formData = await request.formData();
@@ -494,14 +495,24 @@ export function createApp(dependencies: AppDependencies): (request: Request) => 
                 return json({ code: "invalid_argument", message: "File blob required in form-data ('file' or 'package')" }, 400);
               }
               archiveBytes = new Uint8Array(await file.arrayBuffer());
-              allowUnsigned = formData.get("allowUnsigned") !== "false";
+              if (formData.has("allowUnsigned")) {
+                allowUnsigned = formData.get("allowUnsigned") !== "false";
+              }
+              if (formData.has("allowDowngrade")) {
+                allowDowngrade = formData.get("allowDowngrade") === "true";
+              }
             } else if (contentTypeHeader.includes("application/json")) {
-              const body = await request.json() as { buffer?: string; allowUnsigned?: boolean };
+              const body = await request.json() as { buffer?: string; allowUnsigned?: boolean; allowDowngrade?: boolean };
               if (!body?.buffer) {
                 return json({ code: "invalid_argument", message: "Base64 buffer required in JSON payload" }, 400);
               }
               archiveBytes = Buffer.from(body.buffer, "base64");
-              allowUnsigned = body.allowUnsigned !== false;
+              if (body.allowUnsigned !== undefined) {
+                allowUnsigned = body.allowUnsigned !== false;
+              }
+              if (body.allowDowngrade !== undefined) {
+                allowDowngrade = body.allowDowngrade === true;
+              }
             } else {
               archiveBytes = new Uint8Array(await request.arrayBuffer());
             }
@@ -510,22 +521,34 @@ export function createApp(dependencies: AppDependencies): (request: Request) => 
               return json({ code: "invalid_argument", message: "Archive payload cannot be empty" }, 400);
             }
 
-            const pkg = await dependencies.packages.importFromZip(archiveBytes, allowUnsigned);
+            const pkg = await dependencies.packages.importFromZip(archiveBytes, { allowUnsigned, allowDowngrade });
             return json({ ok: true, package: pkg }, 201);
           } catch (err: any) {
-            return json({ code: "invalid_package", message: err.message }, 400);
+            const code = err.name === "SignerMismatchError"
+              ? "signer_mismatch"
+              : err.name === "PackageDowngradeError"
+                ? "downgrade_rejected"
+                : "invalid_package";
+            return json({ code, message: err.message }, 400);
           }
         }
         if (request.method === "POST" && url.pathname === "/api/v1/packages/install-remote") {
-          const body = await request.json() as { url?: string; allowUnsigned?: boolean };
+          const body = await request.json() as { url?: string; allowUnsigned?: boolean; allowDowngrade?: boolean };
           if (!body?.url) {
             return json({ code: "invalid_argument", message: "url is required" }, 400);
           }
+          const allowDowngrade = body.allowDowngrade === true || url.searchParams.get("allowDowngrade") === "true";
+          const allowUnsigned = body.allowUnsigned !== false && url.searchParams.get("allowUnsigned") !== "false";
           try {
-            const pkg = await dependencies.packages.importFromUrl(body.url, body.allowUnsigned !== false);
+            const pkg = await dependencies.packages.importFromUrl(body.url, { allowUnsigned, allowDowngrade });
             return json({ ok: true, package: pkg }, 201);
           } catch (err: any) {
-            return json({ code: "install_failed", message: err.message }, 400);
+            const code = err.name === "SignerMismatchError"
+              ? "signer_mismatch"
+              : err.name === "PackageDowngradeError"
+                ? "downgrade_rejected"
+                : "install_failed";
+            return json({ code, message: err.message }, 400);
           }
         }
         if (request.method === "POST" && url.pathname === "/api/v1/packages/create") {
