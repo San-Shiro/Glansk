@@ -498,14 +498,17 @@ export function applyTileAppearance(tile, widget, theme = {}) {
     tile.style.removeProperty('padding');
   }
 
-  if (app && typeof app === 'object') {
+  const cfg = widget.config || {};
+  if ((app && typeof app === 'object') || cfg.radius !== undefined || cfg.borderWidth !== undefined || cfg.opacity !== undefined) {
     const store = getActiveVariableStore();
-    const resolvedPadding = resolveDynamicValue(app.padding, store, app.padding);
-    const resolvedRadius = resolveDynamicValue(app.borderRadius, store, app.borderRadius);
-    const resolvedOpacity = resolveDynamicValue(app.opacity, store, app.opacity);
-    const resolvedBorderWidth = resolveDynamicValue(app.borderWidth, store, app.borderWidth);
-    const resolvedBorderColor = resolveDynamicValue(app.borderColor, store, app.borderColor);
-    const hasBoundingBox = isCard;
+    const resolvedPadding = resolveDynamicValue(app?.padding, store, app?.padding);
+    const rawRadius = app?.borderRadius !== undefined && app?.borderRadius !== null ? app?.borderRadius : cfg.radius;
+    const resolvedRadius = resolveDynamicValue(rawRadius, store, rawRadius);
+    const rawOpacity = app?.opacity !== undefined && app?.opacity !== null ? app?.opacity : (cfg.opacity !== undefined ? Number(cfg.opacity) / 100 : undefined);
+    const resolvedOpacity = resolveDynamicValue(rawOpacity, store, rawOpacity);
+    const rawBorderWidth = app?.borderWidth !== undefined && app?.borderWidth !== null ? app?.borderWidth : cfg.borderWidth;
+    const resolvedBorderWidth = resolveDynamicValue(rawBorderWidth, store, rawBorderWidth);
+    const resolvedBorderColor = resolveDynamicValue(app?.borderColor, store, app?.borderColor);
 
     // Custom Padding: set only if explicitly defined
     if (resolvedPadding !== undefined && resolvedPadding !== null) {
@@ -516,14 +519,14 @@ export function applyTileAppearance(tile, widget, theme = {}) {
       tile.style.removeProperty('--tile-padding');
     }
 
-    // Custom Border Radius: set only if explicitly defined and in bounding box
-    if (resolvedRadius !== undefined && resolvedRadius !== null && isCard) {
+    // Border Radius: apply CSS variable for tile and nested primitives
+    if (resolvedRadius !== undefined && resolvedRadius !== null) {
       tile.style.setProperty('--tile-radius', radiusToCss(resolvedRadius));
-    } else if (isCard) {
+    } else {
       tile.style.removeProperty('--tile-radius');
     }
 
-    if (typeof app.fontScale === 'number') {
+    if (typeof app?.fontScale === 'number') {
       tile.style.setProperty('--widget-font-scale', String(app.fontScale));
     } else {
       tile.style.removeProperty('--widget-font-scale');
@@ -535,7 +538,7 @@ export function applyTileAppearance(tile, widget, theme = {}) {
       tile.style.removeProperty('--tile-opacity');
     }
 
-    if (app.transparentBg && isCard) {
+    if (app?.transparentBg && isCard) {
       tile.style.setProperty('--tile-bg', 'transparent');
       tile.style.setProperty('--tile-bg-gradient', 'none');
       tile.style.setProperty('--tile-shadow', 'none');
@@ -545,19 +548,19 @@ export function applyTileAppearance(tile, widget, theme = {}) {
       tile.style.removeProperty('--tile-shadow');
     }
 
-    if (resolvedBorderWidth !== undefined && resolvedBorderWidth !== null && isCard && !isNaN(Number(resolvedBorderWidth))) {
+    if (resolvedBorderWidth !== undefined && resolvedBorderWidth !== null && !isNaN(Number(resolvedBorderWidth))) {
       tile.style.setProperty('--tile-border-width', `${resolvedBorderWidth}px`);
     } else {
       tile.style.removeProperty('--tile-border-width');
     }
 
-    if (typeof app.borderStyle === 'string' && hasBoundingBox) {
+    if (typeof app?.borderStyle === 'string') {
       tile.style.setProperty('--tile-border-style', app.borderStyle);
     } else {
       tile.style.removeProperty('--tile-border-style');
     }
 
-    if (typeof resolvedBorderColor === 'string' && hasBoundingBox && resolvedBorderColor.trim()) {
+    if (typeof resolvedBorderColor === 'string' && resolvedBorderColor.trim()) {
       const borderCol = colorToCss(resolvedBorderColor, 'cssVar', theme);
       if (borderCol) tile.style.setProperty('--tile-border-color', borderCol);
     } else {

@@ -45,8 +45,6 @@ export const CORE_WIDGET_DEFINITIONS = {
         { label: "Fill (Stretch)", value: "fill" },
         { label: "Center (No Scale)", value: "none" },
       ]},
-      { key: "radius", type: "number", label: "Border Radius (px)", min: 0, max: 48, default: 8 },
-      { key: "opacity", type: "number", label: "Opacity (%)", min: 0, max: 100, default: 100 },
     ],
   },
   "shape": {
@@ -67,8 +65,6 @@ export const CORE_WIDGET_DEFINITIONS = {
         { label: "Pill / Capsule", value: "pill" },
         { label: "Divider Line", value: "divider" },
       ]},
-      { key: "radius", type: "number", label: "Corner Radius (px)", min: 0, max: 64, default: 12 },
-      { key: "borderWidth", type: "number", label: "Border Width (px)", min: 0, max: 12, default: 1 },
       { key: "blur", type: "number", label: "Backdrop Blur (px)", min: 0, max: 32, default: 0 },
     ],
   },
@@ -185,7 +181,6 @@ export const CORE_WIDGET_DEFINITIONS = {
         { label: "Outline", value: "outline" },
         { label: "Ghost / Minimal", value: "ghost" },
       ]},
-      { key: "radius", type: "number", label: "Corner Radius (px)", min: 0, max: 48, default: 12 },
     ],
     outputVariables: {
       "clickCount": { name: "clickCount", type: "number", defaultValue: 0, description: "Total times this button has been pressed in the current session" },

@@ -14,11 +14,12 @@ export function widgetMarkup(widget) {
 
   // --- Core Universal Primitives ---
   if (widget.widgetId === 'image') {
+    const app = config.appearance || {};
     const url = config.url || '';
     const alt = esc(config.alt || 'Image');
     const fit = esc(config.fit || 'cover');
-    const radius = Number(config.radius) || 0;
-    const opacity = (Number(config.opacity ?? 100)) / 100;
+    const radius = Number(app.borderRadius !== undefined && app.borderRadius !== null ? app.borderRadius : (config.radius || 0)) || 0;
+    const opacity = app.opacity !== undefined ? Number(app.opacity) : (config.opacity !== undefined ? Number(config.opacity) / 100 : 1);
     if (url) {
       return `
         <div class="primitive-image-wrap" style="border-radius: ${radius}px; opacity: ${opacity};">
@@ -27,7 +28,7 @@ export function widgetMarkup(widget) {
       `;
     }
     return `
-      <div class="primitive-image-wrap primitive-image-placeholder" style="border-radius: ${radius}px;">
+      <div class="primitive-image-wrap primitive-image-placeholder" style="border-radius: ${radius}px; opacity: ${opacity};">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
           <circle cx="8.5" cy="8.5" r="1.5"/>
@@ -39,9 +40,10 @@ export function widgetMarkup(widget) {
   }
 
   if (widget.widgetId === 'shape') {
+    const app = config.appearance || {};
     const shapeType = esc(config.shapeType || 'rounded-rect');
-    const radius = Number(config.radius ?? 12);
-    const borderWidth = Number(config.borderWidth ?? 1);
+    const radius = Number(app.borderRadius !== undefined && app.borderRadius !== null ? app.borderRadius : (config.radius ?? 12));
+    const borderWidth = Number(app.borderWidth !== undefined && app.borderWidth !== null ? app.borderWidth : (config.borderWidth ?? 1));
     const blur = Number(config.blur ?? 0);
     const styleParts = [];
     if (shapeType === 'circle') styleParts.push('border-radius: 50%');
@@ -117,13 +119,15 @@ export function widgetMarkup(widget) {
   }
 
   if (widget.widgetId === 'button') {
+    const app = config.appearance || {};
     const label = esc(config.label || 'Action Trigger');
     const icon = config.icon ? esc(config.icon) : '';
     const variant = esc(config.variant || 'solid');
     const actionType = esc(config.actionType || 'command');
     const target = esc(config.target || config.variableName || 'showElement');
     const variableValue = esc(config.variableValue ?? 'true');
-    const radiusStyle = config.radius !== undefined && config.radius !== null ? `style="border-radius: ${Number(config.radius)}px;"` : '';
+    const radiusVal = app.borderRadius !== undefined && app.borderRadius !== null ? app.borderRadius : config.radius;
+    const radiusStyle = radiusVal !== undefined && radiusVal !== null ? `style="border-radius: ${Number(radiusVal)}px;"` : '';
     return `
       <div class="primitive-btn-wrap">
         <button type="button" class="primitive-btn primitive-btn-${variant}" data-action="${actionType}" data-target="${target}" data-value="${variableValue}" ${radiusStyle}>

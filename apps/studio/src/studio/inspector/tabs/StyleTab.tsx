@@ -20,6 +20,7 @@ import type {
 import { getWidgetDefinition } from "@shared/widget-definitions.js";
 import { BUILTIN_DESIGN_PRESETS } from "@shared/design-presets.js";
 import { AccordionSection, CornerRadiusControl, MediaPickerControl } from "@/studio/controls";
+import ThemeColorPickerControl from "@/studio/controls/ThemeColorPickerControl";
 import LinkedBoxModel from "../controls/LinkedBoxModel";
 import { HexColorPicker } from "react-colorful";
 
@@ -49,9 +50,9 @@ export default function StyleTab({
     ...rawApp,
     frame: rawApp?.frame ?? "none",
     padding: rawApp?.padding,
-    opacity: rawApp?.opacity ?? 1,
-    borderRadius: rawApp?.borderRadius ?? 0,
-    borderWidth: rawApp?.borderWidth ?? 0,
+    opacity: rawApp?.opacity ?? (cfg.opacity !== undefined ? Number(cfg.opacity) / 100 : 1),
+    borderRadius: rawApp?.borderRadius ?? (cfg.radius as any ?? 0),
+    borderWidth: rawApp?.borderWidth ?? (cfg.borderWidth as any ?? 0),
     transparentBg: rawApp?.transparentBg ?? true,
     background: rawApp?.background,
     borderColor: rawApp?.borderColor,
@@ -59,18 +60,7 @@ export default function StyleTab({
   };
 
   const updateApp = (patch: Partial<WidgetAppearance>) => {
-    // Automatically activate card frame mode when border, radius, background, or presets are styled
-    const isStylingSurface =
-      patch.borderWidth !== undefined ||
-      patch.borderColor !== undefined ||
-      patch.borderRadius !== undefined ||
-      patch.padding !== undefined ||
-      patch.presetId !== undefined ||
-      (patch.transparentBg === false);
-
-    const nextFrame = patch.frame !== undefined 
-      ? patch.frame 
-      : (isStylingSurface && app.frame === "none" ? "card" : app.frame);
+    const nextFrame = patch.frame !== undefined ? patch.frame : app.frame;
 
     onUpdateConfig(widget.id, {
       ...cfg,
@@ -119,15 +109,12 @@ export default function StyleTab({
     };
     const rVal = preset.geometry?.radius ? radiusMap[preset.geometry.radius] ?? 8 : 8;
     updateApp({
-      frame: "card",
-      showBoundingBox: true,
       presetId: presetKey,
       followCanvasTheme: false,
       borderColor: preset.palette.border,
       borderWidth: preset.geometry?.borderWidth ?? 1,
       borderStyle: "solid",
       borderRadius: rVal,
-      transparentBg: false,
     });
   };
 
@@ -171,7 +158,65 @@ export default function StyleTab({
         </div>
       </AccordionSection>
 
-      {/* 2. Geometry & Canvas Alignment */}
+      {/* 2. Declared Color Slots (when available on widget) */}
+      {def.colorSlots && def.colorSlots.length > 0 && (
+        <AccordionSection
+          title="Widget Colors"
+          defaultOpen
+          actions={
+            app.followCanvasTheme === false && (
+              <button
+                type="button"
+                onClick={() => updateApp({ followCanvasTheme: true, slots: undefined })}
+                className="text-[10px] text-[var(--accent)] hover:underline flex items-center gap-1"
+                title="Reset to canvas theme palette"
+              >
+                <RotateCcw size={10} /> Reset Theme
+              </button>
+            )
+          }
+        >
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between text-[10px] text-[var(--ink-3)] font-mono">
+              <span>{def.colorSlots.length} Color Slots</span>
+              <span className={app.followCanvasTheme === false ? "text-[var(--accent)]" : ""}>
+                {app.followCanvasTheme === false ? "Custom Overrides" : "Canvas Theme"}
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {def.colorSlots.map((slot) => {
+                const currentSlotCfg = app.slots?.[slot.key] || { mode: "theme", value: slot.defaultThemeToken };
+                return (
+                  <div
+                    key={slot.key}
+                    className="p-2.5 rounded-lg border space-y-1.5 bg-[var(--panel-2)] shadow-xs"
+                    style={{ borderColor: "var(--line)" }}
+                  >
+                    <ThemeColorPickerControl
+                      label={slot.label}
+                      value={currentSlotCfg}
+                      defaultToken={slot.defaultThemeToken}
+                      onChange={(nextCfg) => {
+                        const nextSlots = { ...(app.slots || {}) };
+                        nextSlots[slot.key] = nextCfg;
+                        updateApp({ slots: nextSlots, followCanvasTheme: false });
+                      }}
+                      onReset={() => {
+                        const nextSlots = { ...(app.slots || {}) };
+                        delete nextSlots[slot.key];
+                        updateApp({ slots: nextSlots });
+                      }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </AccordionSection>
+      )}
+
+      {/* 3. Geometry & Canvas Alignment */}
       <AccordionSection title="Geometry & Position" defaultOpen>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">

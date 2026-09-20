@@ -206,4 +206,32 @@ describe("Legacy Widget Alias and Migration Compatibility", () => {
       widgetId: "custom-widget",
     });
   });
+
+  it("unifies appearance styling across primitives and eliminates duplicate config schema keys", () => {
+    // 1. Verify radius was removed from configSchema
+    for (const pid of ["button", "image", "shape"]) {
+      const def = getWidgetDefinition(pid);
+      expect(def?.configSchema?.some((f: any) => f.key === "radius")).toBe(false);
+    }
+
+    // 2. Action button respects appearance.borderRadius
+    const btnMarkup = widgetMarkup({
+      widgetId: "button",
+      config: {
+        label: "Launch",
+        appearance: { borderRadius: 24 },
+      },
+    });
+    expect(btnMarkup).toContain('style="border-radius: 24px;"');
+
+    // 3. Backward compatibility: respects legacy config.radius when appearance is omitted
+    const legacyBtn = widgetMarkup({
+      widgetId: "button",
+      config: {
+        label: "Legacy",
+        radius: 18,
+      },
+    });
+    expect(legacyBtn).toContain('style="border-radius: 18px;"');
+  });
 });
