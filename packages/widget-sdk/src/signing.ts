@@ -6,6 +6,14 @@ export interface PackageSigner {
   signedAt: string; // ISO 8601 string
 }
 
+export interface PackageChangelogEntry {
+  readonly version: string;
+  readonly versionCode?: number;
+  readonly date?: string;
+  readonly summary?: string;
+  readonly changes?: readonly string[];
+}
+
 export interface DeveloperKeypair {
   publicKey: string; // Base64-encoded raw 32-byte Ed25519 public key
   privateKey: string; // Base64-encoded private key (PKCS#8 48-byte or raw 32-byte seed)

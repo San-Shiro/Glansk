@@ -567,7 +567,7 @@ export function createApp(dependencies: AppDependencies): (request: Request) => 
             return json({ code: "creation_failed", message: err.message }, 400);
           }
         }
-        const pkgMatch = url.pathname.match(/^\/api\/v1\/packages\/([a-z0-9._-]+)(?:\/(files|export))?$/);
+        const pkgMatch = url.pathname.match(/^\/api\/v1\/packages\/([a-z0-9._-]+)(?:\/(files|export|changelog))?$/);
         if (pkgMatch) {
           const id = pkgMatch[1]!;
           const action = pkgMatch[2];
@@ -577,6 +577,18 @@ export function createApp(dependencies: AppDependencies): (request: Request) => 
             if (!pkg) return json({ code: "not_found", message: `Package ${id} not found` }, 404);
             const files = await dependencies.packages.getPackageFiles(id);
             return json({ package: pkg, files });
+          }
+          if (request.method === "GET" && action === "changelog") {
+            const pkg = dependencies.packages.getInstalled(id);
+            if (!pkg) return json({ code: "not_found", message: `Package ${id} not found` }, 404);
+            return json({
+              id: pkg.id,
+              name: pkg.name,
+              version: pkg.version,
+              versionCode: pkg.versionCode,
+              changelog: pkg.changelog ?? [],
+              changelogMarkdown: pkg.changelogMarkdown ?? null,
+            });
           }
           if (request.method === "PUT" && action === "files") {
             const body = await request.json() as { files?: Record<string, string> };

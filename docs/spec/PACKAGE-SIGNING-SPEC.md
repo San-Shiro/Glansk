@@ -51,6 +51,36 @@ package-name-1.0.0.glpkg
 }
 ```
 
+### 2.3 Changelog Invariant (Optional Release History)
+
+Glansk packages optionally declare release history in two complementary, non-mandatory formats:
+1. **Structured Manifest Changelog (`manifest.changelog`)**:
+   An array of release objects (or a markdown string) in `manifest.json`:
+   ```json
+   "changelog": [
+     {
+       "version": "1.2.0",
+       "versionCode": 120,
+       "date": "2026-09-20",
+       "summary": "Added support for high-frequency telemetry",
+       "changes": [
+         "feat: Add high-frequency 20Hz polling mode",
+         "fix: Correct layout drift on narrow displays"
+       ]
+     },
+     {
+       "version": "1.0.0",
+       "versionCode": 100,
+       "date": "2026-09-01",
+       "summary": "Initial release"
+     }
+   ]
+   ```
+2. **Bundled Markdown Changelog (`CHANGELOG.md`)**:
+   Developers may bundle a standard `CHANGELOG.md` file in the package root. When present:
+   - It is hashed and verified within `manifest.files["CHANGELOG.md"]`.
+   - The server stores the raw markdown and surfaces it via `GET /api/v1/packages/:id/changelog` alongside structured entries.
+
 ---
 
 ## 3. Cryptographic Invariants

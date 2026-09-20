@@ -45,6 +45,7 @@ export interface PackageManifest {
   signature?: string;
   keyId?: string;
   signer?: PackageSigner;
+  changelog?: any;
   widgets?: WidgetDescriptor[];
   emitters?: EmitterDescriptor[];
   presets?: any[];
@@ -153,7 +154,33 @@ export async function validatePackage(
     }
   }
 
-  // 3. Android-style Ed25519 Developer Origin Signature Verification
+  // 3. Changelog validation (optional release history)
+  if (manifest.changelog !== undefined) {
+    if (typeof manifest.changelog === "string") {
+      if (manifest.changelog.trim().length === 0) {
+        throw new Error("invalid manifest: changelog string cannot be empty");
+      }
+    } else if (Array.isArray(manifest.changelog)) {
+      for (const [idx, entry] of manifest.changelog.entries()) {
+        if (!entry || typeof entry !== "object") {
+          throw new Error(`invalid manifest: changelog entry at index ${idx} must be an object`);
+        }
+        if (!entry.version || typeof entry.version !== "string") {
+          throw new Error(`invalid manifest: changelog entry at index ${idx} must have a string 'version'`);
+        }
+        if (entry.versionCode !== undefined && (!Number.isInteger(entry.versionCode) || entry.versionCode < 1)) {
+          throw new Error(`invalid manifest: changelog entry at index ${idx} versionCode must be a positive integer`);
+        }
+        if (entry.changes !== undefined && (!Array.isArray(entry.changes) || !entry.changes.every((c: any) => typeof c === "string"))) {
+          throw new Error(`invalid manifest: changelog entry at index ${idx} 'changes' must be an array of strings`);
+        }
+      }
+    } else {
+      throw new Error("invalid manifest: changelog must be an array of release entries or a string");
+    }
+  }
+
+  // 4. Android-style Ed25519 Developer Origin Signature Verification
   if (manifest.signer) {
     const { algorithm, publicKey, fingerprint, signature } = manifest.signer;
     if (algorithm !== "Ed25519") {

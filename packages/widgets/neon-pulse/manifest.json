@@ -1,0 +1,59 @@
+{
+  "manifestVersion": 2,
+  "id": "glansk.neon-pulse",
+  "name": "Neon Pulse HUD",
+  "version": "1.1.0",
+  "versionCode": 110,
+  "kind": "widget",
+  "description": "Ambient Cybernetic Clock, Pulse Monitor & Real-Time Variable Broadcaster",
+  "author": {
+    "name": "Glansk Studio Labs",
+    "url": "https://glansk.dev"
+  },
+  "compatibility": {
+    "glansk": ">=0.4.0",
+    "protocol": "glansk.widget.v1"
+  },
+  "changelog": [
+    {
+      "version": "1.1.0",
+      "versionCode": 110,
+      "date": "2026-09-20",
+      "summary": "Dynamic cyber theme picker, particle waveforms, and live state broadcasting",
+      "changes": [
+        "feat: Add live reactive particle waveform canvas",
+        "feat: Add cybernetic theme switcher (Cyan, Amber, Emerald, Violet)",
+        "feat: Add interactive 'EMIT PULSE' trigger publishing to glansk.pulse.temperature",
+        "feat: Added standard CHANGELOG.md and manifest changelog metadata"
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "versionCode": 100,
+      "date": "2026-09-15",
+      "summary": "Initial release of Neon Pulse HUD",
+      "changes": [
+        "feat: Digital HUD clock with date, seconds, and milliseconds",
+        "feat: Baseline telemetry cards and hardened CSP compliance"
+      ]
+    }
+  ],
+  "widgets": [
+    {
+      "id": "neon-pulse-hud",
+      "name": "Neon Pulse HUD",
+      "entry": "index.html",
+      "description": "Cybernetic HUD with glowing clock, pulse waveform, and live telemetry",
+      "category": "display",
+      "dimensions": {
+        "default": { "w": 400, "h": 320 },
+        "minimum": { "w": 280, "h": 220 }
+      },
+      "capabilities": {
+        "publishTopics": ["glansk.pulse.temperature", "glansk.pulse.event"],
+        "subscribeTopics": ["glansk.pulse.temperature"]
+      }
+    }
+  ],
+  "files": {}
+}

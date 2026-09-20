@@ -11,7 +11,7 @@ import {
 import { extractZip, createZip } from "../../platform/archive";
 import { registerPackageWidget, unregisterPackage } from "../../widgets/registry";
 import { registerPackageWidget as registerSharedWidget, unregisterPackage as unregisterSharedWidget } from "../../shared/packaged-widget-registry";
-import { normalizeManifestToV2, type PackageManifestV2, type LegacyAlias } from "../../platform/package-manifest-v2";
+import { normalizeManifestToV2, type PackageManifestV2, type LegacyAlias, type PackageChangelogEntry } from "../../platform/package-manifest-v2";
 import { type WidgetDesignPreset } from "../../platform/design-preset-schema";
 
 export class SignerMismatchError extends Error {
@@ -57,6 +57,8 @@ export interface PackageRecord {
   manifestVersion?: number | undefined;
   presets?: readonly WidgetDesignPreset[] | undefined;
   aliases?: readonly LegacyAlias[] | undefined;
+  changelog?: readonly PackageChangelogEntry[] | string | undefined;
+  changelogMarkdown?: string | undefined;
 }
 
 export interface RepositoryFeed {
@@ -127,7 +129,8 @@ export class PackageService {
         if (entry.isDirectory()) {
           const pkgId = entry.name;
           try {
-            const manifestPath = join(this.packagesDir, pkgId, "manifest.json");
+            const pkgDir = join(this.packagesDir, pkgId);
+            const manifestPath = join(pkgDir, "manifest.json");
             const manifestRaw = await readFile(manifestPath, "utf-8");
             const raw = JSON.parse(manifestRaw);
             const manifest = normalizeManifestToV2(raw);
@@ -161,6 +164,18 @@ export class PackageService {
               manifestVersion: manifest.manifestVersion,
               presets: manifest.presets,
               aliases: manifest.aliases,
+              changelog: manifest.changelog,
+              changelogMarkdown: await (async () => {
+                try {
+                  return await readFile(join(pkgDir, "CHANGELOG.md"), "utf-8");
+                } catch {
+                  try {
+                    return await readFile(join(pkgDir, "changelog.md"), "utf-8");
+                  } catch {
+                    return undefined;
+                  }
+                }
+              })(),
             };
 
             this.records.set(pkgId, record);
@@ -499,6 +514,11 @@ export class PackageService {
       manifestVersion: v2.manifestVersion,
       presets: v2.presets,
       aliases: v2.aliases,
+      changelog: v2.changelog ?? manifest.changelog,
+      changelogMarkdown: (() => {
+        const md = extracted.get("CHANGELOG.md") || extracted.get("changelog.md");
+        return md ? new TextDecoder("utf-8").decode(md) : undefined;
+      })(),
     };
 
     if (existing) {

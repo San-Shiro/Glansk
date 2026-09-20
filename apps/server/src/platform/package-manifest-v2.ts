@@ -102,6 +102,43 @@ export interface PackageManifestV2 {
   readonly signature?: string | undefined;
   readonly keyId?: string | undefined;
   readonly signer?: PackageSigner | undefined;
+  readonly changelog?: readonly PackageChangelogEntry[] | string | undefined;
+}
+
+export interface PackageChangelogEntry {
+  readonly version: string;
+  readonly versionCode?: number | undefined;
+  readonly date?: string | undefined;
+  readonly summary?: string | undefined;
+  readonly changes?: readonly string[] | undefined;
+}
+
+function normalizeChangelog(raw: unknown): readonly PackageChangelogEntry[] | string | undefined {
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+  if (Array.isArray(raw)) {
+    const entries: PackageChangelogEntry[] = [];
+    for (const entry of raw) {
+      if (!entry || typeof entry !== "object") continue;
+      if (!entry.version) continue;
+      const normalized: PackageChangelogEntry = {
+        version: String(entry.version),
+        ...(typeof entry.versionCode === "number" && Number.isInteger(entry.versionCode) && entry.versionCode > 0
+          ? { versionCode: entry.versionCode }
+          : {}),
+        ...(entry.date ? { date: String(entry.date) } : {}),
+        ...(entry.summary ? { summary: String(entry.summary) } : {}),
+        ...(Array.isArray(entry.changes)
+          ? { changes: entry.changes.filter((c: unknown) => typeof c === "string").map((c: string) => String(c)) }
+          : {}),
+      };
+      entries.push(normalized);
+    }
+    return entries.length > 0 ? entries : undefined;
+  }
+  return undefined;
 }
 
 /**
@@ -161,6 +198,12 @@ export function normalizeManifestToV2(raw: Record<string, any>): PackageManifest
       ...(raw.signature !== undefined ? { signature: raw.signature } : {}),
       ...(raw.keyId !== undefined ? { keyId: raw.keyId } : {}),
       ...(raw.signer !== undefined ? { signer: raw.signer } : {}),
+      ...(raw.changelog !== undefined
+        ? (() => {
+            const cl = normalizeChangelog(raw.changelog);
+            return cl !== undefined ? { changelog: cl } : {};
+          })()
+        : {}),
     };
   }
 
@@ -211,5 +254,11 @@ export function normalizeManifestToV2(raw: Record<string, any>): PackageManifest
     files: raw.files || {},
     ...(raw.signature !== undefined ? { signature: raw.signature } : {}),
     ...(raw.keyId !== undefined ? { keyId: raw.keyId } : {}),
+    ...(raw.changelog !== undefined
+      ? (() => {
+          const cl = normalizeChangelog(raw.changelog);
+          return cl !== undefined ? { changelog: cl } : {};
+        })()
+      : {}),
   };
 }

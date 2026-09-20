@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, Radio } from "lucide-react";
-import { CATALOG, CATEGORY_LABELS, CATEGORY_COLORS, type Category, type CatalogItem } from "@/lib/catalog";
+import { CATALOG, CATEGORY_LABELS, CATEGORY_COLORS, setActiveDraggingWidget, type Category, type CatalogItem } from "@/lib/catalog";
 import { TextInput } from "@/components/ui";
 
 const ORDER: Category[] = ["data", "display", "control", "media"];
@@ -123,11 +123,13 @@ export default function Palette({ onAdd }: { onAdd: (item: CatalogItem) => void 
                     key={`emitter-${em.manifest.id}`}
                     draggable
                     onDragStart={(e) => {
+                      setActiveDraggingWidget(item);
                       e.dataTransfer.setData("text/glansk-widget", `glansk.demo/emitter-widget`);
                       e.dataTransfer.setData("text/glansk-dim", JSON.stringify(item.defaultGeometry));
                       e.dataTransfer.setData("text/glansk-title", item.title);
                       e.dataTransfer.effectAllowed = "copy";
                     }}
+                    onDragEnd={() => setActiveDraggingWidget(null)}
                     onClick={() => onAdd(item)}
                     className="w-full text-left px-2 py-1.5 border transition-all hover:border-emerald-500 hover:bg-emerald-950/20 active:translate-y-px flex items-center justify-between"
                     style={{ borderColor: "var(--line)", borderRadius: "var(--radius)", background: "var(--panel)" }}
@@ -155,11 +157,13 @@ export default function Palette({ onAdd }: { onAdd: (item: CatalogItem) => void 
                   key={`${item.packageId}/${item.widgetId}`}
                   draggable
                   onDragStart={e => {
+                    setActiveDraggingWidget(item);
                     e.dataTransfer.setData("text/glansk-widget", `${item.packageId}/${item.widgetId}`);
                     e.dataTransfer.setData("text/glansk-dim", JSON.stringify(item.defaultGeometry));
                     e.dataTransfer.setData("text/glansk-title", item.title);
                     e.dataTransfer.effectAllowed = "copy";
                   }}
+                  onDragEnd={() => setActiveDraggingWidget(null)}
                   onClick={() => onAdd(item)}
                   title={item.packaged ? "Packaged widget (sandboxed)" : "Built-in widget"}
                   className="text-left px-2 py-2 border transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] active:translate-y-px"

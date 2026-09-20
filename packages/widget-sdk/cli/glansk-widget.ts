@@ -50,10 +50,17 @@ async function collectFiles(dir: string, base: string = dir): Promise<Record<str
   for (const entry of entries) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (entry.name !== "node_modules" && entry.name !== ".git") {
+      if (
+        entry.name !== "node_modules" &&
+        entry.name !== ".git" &&
+        entry.name !== "dist" &&
+        entry.name !== "keys" &&
+        entry.name !== ".tmp"
+      ) {
         Object.assign(result, await collectFiles(full, base));
       }
     } else if (entry.isFile()) {
+      if (entry.name.endsWith(".key") || entry.name.endsWith(".glpkg")) continue;
       const rel = relative(base, full).replace(/\\/g, "/");
       result[rel] = new Uint8Array(await readFile(full));
     }
@@ -97,6 +104,32 @@ export async function validateAndPack(
         rawManifest.versionCode > 2147483647
       ) {
         throw new Error("Invalid manifest: versionCode must be a positive 32-bit integer (1 to 2147483647)");
+      }
+    }
+
+    // Validate changelog if present
+    if (rawManifest.changelog !== undefined) {
+      if (typeof rawManifest.changelog === "string") {
+        if (rawManifest.changelog.trim().length === 0) {
+          throw new Error("Invalid manifest: changelog string cannot be empty");
+        }
+      } else if (Array.isArray(rawManifest.changelog)) {
+        for (const [idx, entry] of rawManifest.changelog.entries()) {
+          if (!entry || typeof entry !== "object") {
+            throw new Error(`Invalid manifest: changelog entry at index ${idx} must be an object`);
+          }
+          if (!entry.version || typeof entry.version !== "string") {
+            throw new Error(`Invalid manifest: changelog entry at index ${idx} must have a string 'version'`);
+          }
+          if (entry.versionCode !== undefined && (!Number.isInteger(entry.versionCode) || entry.versionCode < 1)) {
+            throw new Error(`Invalid manifest: changelog entry at index ${idx} versionCode must be a positive integer`);
+          }
+          if (entry.changes !== undefined && (!Array.isArray(entry.changes) || !entry.changes.every((c: any) => typeof c === "string"))) {
+            throw new Error(`Invalid manifest: changelog entry at index ${idx} 'changes' must be an array of strings`);
+          }
+        }
+      } else {
+        throw new Error("Invalid manifest: changelog must be an array of release entries or a string");
       }
     }
 
@@ -150,6 +183,7 @@ export async function validateAndPack(
     }
 
     const zipBytes = await createZip(files);
+    await mkdir(dirname(resolve(outPath)), { recursive: true });
     await writeFile(outPath, zipBytes);
 
     return { success: true, packageFile: outPath, fingerprint: signerFingerprint };
@@ -166,6 +200,8 @@ export interface VerifyPackageResult {
   publicKey?: string;
   versionCode?: number;
   filesCount?: number;
+  changelogCount?: number;
+  hasChangelogMarkdown?: boolean;
   error?: string;
 }
 
@@ -220,7 +256,15 @@ export async function verifyPackageArchive(
       }
     }
 
-    // 3. Signature verification
+    // 3. Changelog metadata inspection
+    const hasChangelogMarkdown = files.has("CHANGELOG.md") || files.has("changelog.md");
+    const changelogCount = Array.isArray(manifest.changelog)
+      ? manifest.changelog.length
+      : typeof manifest.changelog === "string"
+        ? 1
+        : 0;
+
+    // 4. Signature verification
     if (manifest.signer) {
       const res = await verifyPackageManifest(manifest);
       if (!res.valid) {
@@ -234,6 +278,8 @@ export async function verifyPackageArchive(
         publicKey: res.publicKey,
         versionCode: manifest.versionCode,
         filesCount: Object.keys(manifest.files ?? {}).length,
+        changelogCount,
+        hasChangelogMarkdown,
       };
     }
 
@@ -243,6 +289,8 @@ export async function verifyPackageArchive(
       signed: false,
       versionCode: manifest.versionCode,
       filesCount: Object.keys(manifest.files ?? {}).length,
+      changelogCount,
+      hasChangelogMarkdown,
     };
   } catch (err: any) {
     return { success: false, signed: false, error: err.message };
@@ -328,6 +376,9 @@ if (import.meta.main) {
       console.log(`  Package ID:     ${res.manifest?.id}`);
       console.log(`  Version:        ${res.manifest?.version} ${res.versionCode ? `(versionCode: ${res.versionCode})` : ""}`);
       console.log(`  Files Verified: ${res.filesCount} file(s) matched SHA-256 digests`);
+      if (res.changelogCount || res.hasChangelogMarkdown) {
+        console.log(`  Changelog:      ${res.changelogCount} release entry/entries${res.hasChangelogMarkdown ? " (CHANGELOG.md included)" : ""}`);
+      }
       if (res.signed) {
         console.log(`  Status:         AUTHENTICATED (Signed)`);
         console.log(`  Developer ID:   ${res.fingerprint}`);

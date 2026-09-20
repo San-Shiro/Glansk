@@ -117,3 +117,11 @@ export function instantiate(item: CatalogItem, x: number, y: number, zIndex: num
     config: structuredClone(item.defaultConfig),
   };
 }
+
+let activeDraggingWidget: CatalogItem | null = null;
+export function setActiveDraggingWidget(item: CatalogItem | null) {
+  activeDraggingWidget = item;
+}
+export function getActiveDraggingWidget(): CatalogItem | null {
+  return activeDraggingWidget;
+}

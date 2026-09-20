@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { LayoutGrid } from "lucide-react";
 import { api, ApiError, CANVAS_LIMITS } from "@/lib/api";
 import type { CanvasDocument, CanvasGroup, JsonValue, WidgetGeometry, WidgetVisibilityConfig, CanvasVariableDefinition, WidgetInstance } from "@/lib/types";
-import { CATALOG, instantiate, type CatalogItem } from "@/lib/catalog";
+import { CATALOG, instantiate, getActiveDraggingWidget, type CatalogItem } from "@/lib/catalog";
 import { Button, Field, Modal, Select, TextInput, Spinner } from "@/components/ui";
 import TopBar from "./TopBar";
 import LeftSidebar, { type LeftNavTab } from "./LeftSidebar";
@@ -105,8 +105,22 @@ export default function Studio({ initialCanvasId, onExit, onNavigateCanvas, onSw
 
   const onDropWidget = useCallback((payload: string, x: number, y: number) => {
     const [packageId, widgetId] = payload.split("/");
-    const item = CATALOG.find(c => c.packageId === packageId && c.widgetId === widgetId);
-    if (item) addWidget(item, Math.round(x), Math.round(y));
+    const activeDrag = getActiveDraggingWidget();
+    let item = (activeDrag && activeDrag.packageId === packageId && activeDrag.widgetId === widgetId)
+      ? activeDrag
+      : CATALOG.find(c => c.packageId === packageId && c.widgetId === widgetId);
+    if (!item) {
+      item = {
+        packageId,
+        widgetId,
+        title: widgetId,
+        category: "display",
+        packaged: true,
+        defaultGeometry: { width: 320, height: 240 },
+        defaultConfig: {},
+      };
+    }
+    addWidget(item, Math.round(x), Math.round(y));
   }, [addWidget]);
 
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);

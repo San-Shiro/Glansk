@@ -3,6 +3,7 @@ import CanvasStage from "@/canvas/CanvasStage";
 import type { CanvasHandle } from "@shared/canvas-render.js";
 import { getWidgetDefinition } from "@shared/widget-definitions.js";
 import type { CanvasDocument, CanvasGroup, WidgetGeometry, WidgetInstance } from "@/lib/types";
+import { getActiveDraggingWidget } from "@/lib/catalog";
 import ContextMenu, { type ContextMenuGroup } from "./ContextMenu";
 import {
   FolderPlus,
@@ -107,9 +108,6 @@ export default function CanvasViewport({
   const [panMode, setPanMode] = useState(false);
   const [snapToGrid, setSnapToGrid] = useState(true);
 
-  // Marquee box selection state
-  const [marquee, setMarquee] = useState<{ startX: number; startY: number; currentX: number; currentY: number } | null>(null);
-
   // Drag and drop blueprint ghost preview
   const [dropGhost, setDropGhost] = useState<{ x: number; y: number; width: number; height: number; title: string } | null>(null);
 
@@ -157,24 +155,12 @@ export default function CanvasViewport({
 
       const isMultiDrag = mode === "move" && activeWidgetIds.includes(w.id) && activeWidgetIds.length > 1;
       const dragIds = isMultiDrag ? activeWidgetIds : [w.id];
+      let hasMoved = false;
 
       if (!isMultiDrag) {
         onSelect(w.id);
         setEffectiveSelectedWidgets([w.id]);
         onSelectGroup(null);
-      }
-
-      if (mode === "move" && !isMultiDrag) {
-        const box = overlayRef.current?.querySelector<HTMLElement>(`[data-box="${w.id}"]`) ?? null;
-        if (box) box.style.pointerEvents = "none";
-        const under = document.elementFromPoint(e.clientX, e.clientY);
-        if (box) box.style.pointerEvents = "";
-
-        const interactive = under?.closest<HTMLElement>("button, [data-action], input, select, textarea, a");
-        if (interactive) {
-          interactive.click();
-          return;
-        }
       }
 
       const startX = e.clientX;
@@ -217,6 +203,9 @@ export default function CanvasViewport({
         }
 
         const onMove = (ev: PointerEvent) => {
+          if (!hasMoved && (Math.abs(ev.clientX - startX) > 2 || Math.abs(ev.clientY - startY) > 2)) {
+            hasMoved = true;
+          }
           let dx = (ev.clientX - startX) / zoom;
           let dy = (ev.clientY - startY) / zoom;
           if (snapToGrid) {
@@ -235,10 +224,14 @@ export default function CanvasViewport({
             const absX = item.parent ? item.parent.geometry.x + item.last.x : item.last.x;
             const absY = item.parent ? item.parent.geometry.y + item.last.y : item.last.y;
             if (item.tile) {
-              item.tile.style.transform = `translate(${absX * zoom}px, ${absY * zoom}px)`;
+              item.tile.style.left = `${item.last.x}px`;
+              item.tile.style.top = `${item.last.y}px`;
+              item.tile.style.transform = "";
             }
             if (item.box) {
-              item.box.style.transform = `translate(${absX * zoom}px, ${absY * zoom}px)`;
+              item.box.style.left = `${absX * zoom}px`;
+              item.box.style.top = `${absY * zoom}px`;
+              item.box.style.transform = "";
             }
           }
         };
@@ -246,6 +239,12 @@ export default function CanvasViewport({
         const onUp = () => {
           window.removeEventListener("pointermove", onMove);
           window.removeEventListener("pointerup", onUp);
+          if (!hasMoved) {
+            onSelect(w.id);
+            setEffectiveSelectedWidgets([w.id]);
+            onSelectGroup(null);
+            return;
+          }
           if (onBatchCommitGeometry) {
             onBatchCommitGeometry(items.map((it) => ({ id: it.w.id, geometry: it.last })));
           } else {
@@ -276,22 +275,27 @@ export default function CanvasViewport({
       const apply = (g: WidgetGeometry) => {
         last = g;
         if (tile) {
-          const absX = parentGroup ? parentGroup.geometry.x + g.x : g.x;
-          const absY = parentGroup ? parentGroup.geometry.y + g.y : g.y;
-          tile.style.transform = `translate(${absX * zoom}px, ${absY * zoom}px)`;
-          tile.style.width = `${g.width * zoom}px`;
-          tile.style.height = `${g.height * zoom}px`;
+          tile.style.left = `${g.x}px`;
+          tile.style.top = `${g.y}px`;
+          tile.style.width = `${g.width}px`;
+          tile.style.height = `${g.height}px`;
+          tile.style.transform = "";
         }
         if (box) {
           const absX = parentGroup ? parentGroup.geometry.x + g.x : g.x;
           const absY = parentGroup ? parentGroup.geometry.y + g.y : g.y;
-          box.style.transform = `translate(${absX * zoom}px, ${absY * zoom}px)`;
+          box.style.left = `${absX * zoom}px`;
+          box.style.top = `${absY * zoom}px`;
           box.style.width = `${g.width * zoom}px`;
           box.style.height = `${g.height * zoom}px`;
+          box.style.transform = "";
         }
       };
 
       const onMove = (ev: PointerEvent) => {
+        if (!hasMoved && (Math.abs(ev.clientX - startX) > 2 || Math.abs(ev.clientY - startY) > 2)) {
+          hasMoved = true;
+        }
         let dx = (ev.clientX - startX) / zoom;
         let dy = (ev.clientY - startY) / zoom;
 
@@ -339,7 +343,9 @@ export default function CanvasViewport({
       const onUp = () => {
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
-        onCommitGeometry(w.id, last);
+        if (hasMoved) {
+          onCommitGeometry(w.id, last);
+        }
       };
 
       window.addEventListener("pointermove", onMove);
@@ -361,8 +367,21 @@ export default function CanvasViewport({
       const startY = e.clientY;
       const g0 = { ...grp.geometry };
       let last = g0;
+      let hasMoved = false;
+
+      const box = overlayRef.current?.querySelector<HTMLElement>(`[data-group-box="${grp.id}"]`);
+      const groupEl = handleRef.current?.groups?.get(grp.id)?.el;
+      const memberBoxes = doc.widgets
+        .filter((w) => w.groupId === grp.id)
+        .map((w) => ({
+          widget: w,
+          el: overlayRef.current?.querySelector<HTMLElement>(`[data-box="${w.id}"]`),
+        }));
 
       const onMove = (ev: PointerEvent) => {
+        if (!hasMoved && (Math.abs(ev.clientX - startX) > 2 || Math.abs(ev.clientY - startY) > 2)) {
+          hasMoved = true;
+        }
         let dx = (ev.clientX - startX) / zoom;
         let dy = (ev.clientY - startY) / zoom;
         let nextX = g0.x + dx;
@@ -377,85 +396,50 @@ export default function CanvasViewport({
           y: clamp(Math.round(nextY), 0, Math.max(0, LH - g0.height)),
         };
 
-        const box = overlayRef.current?.querySelector<HTMLElement>(`[data-group-box="${grp.id}"]`);
         if (box) {
-          box.style.transform = `translate(${last.x * zoom}px, ${last.y * zoom}px)`;
+          box.style.left = `${last.x * zoom}px`;
+          box.style.top = `${last.y * zoom}px`;
+          box.style.transform = "";
+        }
+        if (groupEl) {
+          groupEl.style.left = `${last.x}px`;
+          groupEl.style.top = `${last.y}px`;
+          groupEl.style.transform = "";
+        }
+        for (const mb of memberBoxes) {
+          if (mb.el) {
+            mb.el.style.left = `${(last.x + mb.widget.geometry.x) * zoom}px`;
+            mb.el.style.top = `${(last.y + mb.widget.geometry.y) * zoom}px`;
+            mb.el.style.transform = "";
+          }
         }
       };
 
       const onUp = () => {
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
-        onCommitGroupGeometry(grp.id, last);
+        if (hasMoved) {
+          onCommitGroupGeometry(grp.id, last);
+        }
       };
 
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
     },
-    [LW, LH, zoom, onSelectGroup, onSelect, setEffectiveSelectedWidgets, onCommitGroupGeometry, snapToGrid]
+    [LW, LH, zoom, onSelectGroup, onSelect, setEffectiveSelectedWidgets, onCommitGroupGeometry, snapToGrid, doc.widgets]
   );
 
-  // Marquee Lasso Selection
-  const beginMarquee = useCallback(
+  // Click on empty artboard/overlay → deselect everything
+  const clickDeselect = useCallback(
     (e: React.PointerEvent) => {
       if (panMode || e.button !== 0) return;
-      const overlay = overlayRef.current;
-      if (!overlay) return;
-      const rect = overlay.getBoundingClientRect();
-      const startX = (e.clientX - rect.left) / zoom;
-      const startY = (e.clientY - rect.top) / zoom;
-
-      const isShift = e.shiftKey;
-      const initialSelection = isShift ? [...activeWidgetIds] : [];
-      let hasMoved = false;
-
-      setMarquee({ startX, startY, currentX: startX, currentY: startY });
-
-      const onMove = (ev: PointerEvent) => {
-        const curX = (ev.clientX - rect.left) / zoom;
-        const curY = (ev.clientY - rect.top) / zoom;
-
-        // Track if pointer moved beyond a 3px dead-zone
-        if (!hasMoved && (Math.abs(curX - startX) > 3 || Math.abs(curY - startY) > 3)) {
-          hasMoved = true;
-        }
-
-        setMarquee({ startX, startY, currentX: curX, currentY: curY });
-
-        const minX = Math.min(startX, curX);
-        const minY = Math.min(startY, curY);
-        const maxX = Math.max(startX, curX);
-        const maxY = Math.max(startY, curY);
-
-        const hit = doc.widgets
-          .filter((w) => {
-            const g = getAbsoluteGeometry(w);
-            return !(g.x + g.width < minX || g.x > maxX || g.y + g.height < minY || g.y > maxY);
-          })
-          .map((w) => w.id);
-
-        const combined = Array.from(new Set([...initialSelection, ...hit]));
-        setEffectiveSelectedWidgets(combined);
-        onSelectGroup(null);
-      };
-
-      const onUp = () => {
-        window.removeEventListener("pointermove", onMove);
-        window.removeEventListener("pointerup", onUp);
-        setMarquee(null);
-
-        // Click on empty canvas (no drag movement) → deselect everything
-        if (!hasMoved && !isShift) {
-          onSelect(null);
-          setEffectiveSelectedWidgets([]);
-          onSelectGroup(null);
-        }
-      };
-
-      window.addEventListener("pointermove", onMove);
-      window.addEventListener("pointerup", onUp);
+      // Only deselect if clicking directly on the artboard/overlay background
+      if (e.target !== e.currentTarget && (e.target as HTMLElement).getAttribute("data-artboard") !== "true") return;
+      onSelect(null);
+      setEffectiveSelectedWidgets([]);
+      onSelectGroup(null);
     },
-    [panMode, zoom, activeWidgetIds, doc.widgets, getAbsoluteGeometry, setEffectiveSelectedWidgets, onSelectGroup, onSelect]
+    [panMode, onSelect, setEffectiveSelectedWidgets, onSelectGroup]
   );
 
   // Context menu builder
@@ -898,18 +882,21 @@ export default function CanvasViewport({
         const rawX = (e.clientX - rect.left) / zoom;
         const rawY = (e.clientY - rect.top) / zoom;
 
-        let width = 320;
-        let height = 240;
-        let title = "Widget";
-        try {
-          const dimRaw = e.dataTransfer.getData("text/glansk-dim");
-          if (dimRaw) {
-            const dim = JSON.parse(dimRaw);
-            if (dim.width) width = dim.width;
-            if (dim.height) height = dim.height;
-            if (dim.title) title = dim.title;
-          }
-        } catch {}
+        const activeDrag = getActiveDraggingWidget();
+        let width = activeDrag?.defaultGeometry.width ?? 320;
+        let height = activeDrag?.defaultGeometry.height ?? 240;
+        let title = activeDrag?.title ?? "Widget";
+        if (!activeDrag) {
+          try {
+            const dimRaw = e.dataTransfer.getData("text/glansk-dim");
+            if (dimRaw) {
+              const dim = JSON.parse(dimRaw);
+              if (dim.width) width = dim.width;
+              if (dim.height) height = dim.height;
+              if (dim.title) title = dim.title;
+            }
+          } catch {}
+        }
 
         const snapX = snapToGrid ? Math.round((rawX - width / 2) / 8) * 8 : Math.round(rawX - width / 2);
         const snapY = snapToGrid ? Math.round((rawY - height / 2) / 8) * 8 : Math.round(rawY - height / 2);
@@ -933,23 +920,29 @@ export default function CanvasViewport({
         if (!overlay) return;
         const rect = overlay.getBoundingClientRect();
 
-        let width = 320;
-        let height = 240;
-        try {
-          const dimRaw = e.dataTransfer.getData("text/glansk-dim");
-          if (dimRaw) {
-            const dim = JSON.parse(dimRaw);
-            if (dim.width) width = dim.width;
-            if (dim.height) height = dim.height;
-          }
-        } catch {}
+        const activeDrag = getActiveDraggingWidget();
+        let width = activeDrag?.defaultGeometry.width ?? 320;
+        let height = activeDrag?.defaultGeometry.height ?? 240;
+        if (!activeDrag) {
+          try {
+            const dimRaw = e.dataTransfer.getData("text/glansk-dim");
+            if (dimRaw) {
+              const dim = JSON.parse(dimRaw);
+              if (dim.width) width = dim.width;
+              if (dim.height) height = dim.height;
+            }
+          } catch {}
+        }
 
         const rawX = (e.clientX - rect.left) / zoom;
         const rawY = (e.clientY - rect.top) / zoom;
         const snapX = snapToGrid ? Math.round((rawX - width / 2) / 8) * 8 : Math.round(rawX - width / 2);
         const snapY = snapToGrid ? Math.round((rawY - height / 2) / 8) * 8 : Math.round(rawY - height / 2);
 
-        onDropWidget(payload, snapX, snapY);
+        const clampedX = clamp(snapX, 0, Math.max(0, LW - width));
+        const clampedY = clamp(snapY, 0, Math.max(0, LH - height));
+
+        onDropWidget(payload, clampedX, clampedY);
       }}
     >
       {/* Wrapper: contains artboard + floating bars so bars scroll with artboard but aren't clipped */}
@@ -968,7 +961,7 @@ export default function CanvasViewport({
         onPointerDown={(e) => {
           if (panMode || e.button === 1) return;
           if (e.button === 0 && (e.target === e.currentTarget || (e.target as HTMLElement).getAttribute("data-artboard") === "true")) {
-            beginMarquee(e);
+            clickDeselect(e);
           }
         }}
       >
@@ -991,28 +984,10 @@ export default function CanvasViewport({
           onPointerDown={(e) => {
             if (panMode || e.button === 1) return;
             if (e.target === e.currentTarget && e.button === 0) {
-              beginMarquee(e);
+              clickDeselect(e);
             }
           }}
         >
-          {/* Marquee Lasso Rectangle */}
-          {marquee && (
-            <div
-              style={{
-                position: "absolute",
-                left: Math.min(marquee.startX, marquee.currentX) * zoom,
-                top: Math.min(marquee.startY, marquee.currentY) * zoom,
-                width: Math.abs(marquee.currentX - marquee.startX) * zoom,
-                height: Math.abs(marquee.currentY - marquee.startY) * zoom,
-                border: "1.5px dashed var(--accent)",
-                background: "color-mix(in srgb, var(--accent) 14%, transparent)",
-                pointerEvents: "none",
-                zIndex: 999998,
-                borderRadius: 4,
-              }}
-            />
-          )}
-
           {/* Palette Drop Blueprint Ghost */}
           {dropGhost && (
             <div

@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neon Pulse HUD</title>
+  <style>
+    :root {
+      --primary: #00f3ff;
+      --primary-glow: rgba(0, 243, 255, 0.4);
+      --primary-subtle: rgba(0, 243, 255, 0.12);
+      --bg-dark: #0a0c14;
+      --panel-bg: rgba(16, 20, 32, 0.75);
+      --border-color: rgba(0, 243, 255, 0.25);
+      --text-main: #e2e8f0;
+      --text-dim: #64748b;
+    }
+
+    body[data-theme="amber"] {
+      --primary: #ffaa00;
+      --primary-glow: rgba(255, 170, 0, 0.4);
+      --primary-subtle: rgba(255, 170, 0, 0.12);
+      --border-color: rgba(255, 170, 0, 0.25);
+    }
+    body[data-theme="emerald"] {
+      --primary: #00ff9d;
+      --primary-glow: rgba(0, 255, 157, 0.4);
+      --primary-subtle: rgba(0, 255, 157, 0.12);
+      --border-color: rgba(0, 255, 157, 0.25);
+    }
+    body[data-theme="violet"] {
+      --primary: #d946ef;
+      --primary-glow: rgba(217, 70, 239, 0.4);
+      --primary-subtle: rgba(217, 70, 239, 0.12);
+      --border-color: rgba(217, 70, 239, 0.25);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+
+    body {
+      background: radial-gradient(circle at 50% 20%, #151a2e 0%, var(--bg-dark) 80%);
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 14px;
+      user-select: none;
+    }
+
+    .hud-container {
+      position: relative;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 0 24px var(--primary-subtle), inset 0 0 12px var(--primary-subtle);
+      overflow: hidden;
+    }
+
+    .hud-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-color);
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: var(--primary);
+      text-transform: uppercase;
+      text-shadow: 0 0 8px var(--primary-glow);
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--primary);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--primary);
+      animation: blink 1.2s infinite ease-in-out;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 0.3; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-chip {
+      background: var(--primary-subtle);
+      border: 1px solid var(--border-color);
+      color: var(--primary);
+      font-size: 10px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-chip:hover {
+      background: var(--primary);
+      color: #000;
+      box-shadow: 0 0 10px var(--primary-glow);
+    }
+
+    .clock-section {
+      text-align: center;
+      padding: 16px 8px 10px;
+    }
+
+    .clock-digits {
+      font-size: 42px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: #fff;
+      text-shadow: 0 0 16px var(--primary-glow);
+      line-height: 1;
+    }
+
+    .clock-millis {
+      font-size: 18px;
+      color: var(--primary);
+      opacity: 0.9;
+    }
+
+    .clock-date {
+      margin-top: 6px;
+      font-size: 11px;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    .canvas-container {
+      position: relative;
+      flex: 1;
+      min-height: 80px;
+      margin: 4px 12px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px dashed var(--border-color);
+      background: rgba(0, 0, 0, 0.4);
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding: 10px 12px;
+    }
+
+    .metric-card {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      padding: 6px 8px;
+      text-align: center;
+    }
+
+    .metric-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
+    }
+
+    .metric-value {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-top: 2px;
+      text-shadow: 0 0 6px var(--primary-glow);
+    }
+
+    .footer-actions {
+      padding: 8px 12px 12px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-burst {
+      flex: 1;
+      background: linear-gradient(135deg, var(--primary-subtle), transparent);
+      border: 1px solid var(--primary);
+      color: var(--primary);
+      padding: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      border-radius: 6px;
+      cursor: pointer;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: 0 0 12px var(--primary-subtle);
+      transition: all 0.2s;
+    }
+
+    .btn-burst:hover {
+      background: var(--primary);
+      color: #000;
+      box-shadow: 0 0 20px var(--primary-glow);
+    }
+
+    .btn-burst:active {
+      transform: scale(0.98);
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(10, 12, 20, 0.94);
+      backdrop-filter: blur(16px);
+      z-index: 50;
+      flex-direction: column;
+      padding: 16px;
+      animation: fadeIn 0.2s;
+    }
+
+    .modal.open { display: flex; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+    }
+
+    .modal-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .modal-content {
+      flex: 1;
+      overflow-y: auto;
+      font-size: 11px;
+      line-height: 1.5;
+      padding-right: 6px;
+    }
+
+    .release-block {
+      margin-bottom: 12px;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.03);
+      border-left: 2px solid var(--primary);
+      border-radius: 0 4px 4px 0;
+    }
+
+    .release-ver {
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .release-date {
+      font-size: 9px;
+      color: var(--text-dim);
+    }
+
+    .release-item {
+      margin-top: 4px;
+      color: #cbd5e1;
+      list-style-type: square;
+      margin-left: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="hud-container">
+    <div class="hud-header">
+      <div class="brand">
+        <div class="pulse-dot"></div>
+        <span>NEON PULSE HUD</span>
+      </div>
+      <div class="header-actions">
+        <button class="btn-chip" id="themeBtn">THEME</button>
+        <button class="btn-chip" id="changelogBtn">CHANGELOG</button>
+      </div>
+    </div>
+
+    <div class="clock-section">
+      <div class="clock-digits" id="clockMain">00:00:00<span class="clock-millis" id="clockMs">.00</span></div>
+      <div class="clock-date" id="clockDate">LOADING SYSTEM TIME...</div>
+    </div>
+
+    <div class="canvas-container">
+      <canvas id="waveCanvas"></canvas>
+    </div>
+
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Core Temp</div>
+        <div class="metric-value" id="tempVal">42.4 °C</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Pulse Count</div>
+        <div class="metric-value" id="pulseCount">0</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Sync Status</div>
+        <div class="metric-value" id="syncStatus">LIVE</div>
+      </div>
+    </div>
+
+    <div class="footer-actions">
+      <button class="btn-burst" id="pulseTriggerBtn">⚡ Emit Pulse Burst</button>
+    </div>
+
+    <!-- Changelog Modal -->
+    <div class="modal" id="changelogModal">
+      <div class="modal-header">
+        <div class="modal-title">📦 Package Changelog</div>
+        <button class="btn-chip" id="closeModalBtn">CLOSE ✕</button>
+      </div>
+      <div class="modal-content">
+        <div class="release-block">
+          <div class="release-ver">v1.1.0 <span style="font-size:10px; color:var(--primary);">(versionCode: 110)</span></div>
+          <div class="release-date">Released: 2026-09-20</div>
+          <ul>
+            <li class="release-item">Real-time reactive particle waveform canvas rendering.</li>
+            <li class="release-item">Multi-palette theme switcher (Cyan, Amber, Emerald, Violet).</li>
+            <li class="release-item">Interactive trigger button mutating <code>glansk.pulse.temperature</code>.</li>
+            <li class="release-item">Formal manifest changelog metadata & bundled CHANGELOG.md.</li>
+          </ul>
+        </div>
+        <div class="release-block">
+          <div class="release-ver">v1.0.0 <span style="font-size:10px; color:var(--primary);">(versionCode: 100)</span></div>
+          <div class="release-date">Released: 2026-09-15</div>
+          <ul>
+            <li class="release-item">Initial release with digital HUD clock and milliseconds.</li>
+            <li class="release-item">Hardened CSP sandbox compliance (connect-src 'none').</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- Clock Engine ---
+    const clockMain = document.getElementById("clockMain");
+    const clockMs = document.getElementById("clockMs");
+    const clockDate = document.getElementById("clockDate");
+
+    function updateClock() {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2, "0");
+      const m = String(now.getMinutes()).padStart(2, "0");
+      const s = String(now.getSeconds()).padStart(2, "0");
+      const ms = String(Math.floor(now.getMilliseconds() / 10)).padStart(2, "0");
+
+      clockMain.childNodes[0].nodeValue = `${h}:${m}:${s}`;
+      clockMs.textContent = `.${ms}`;
+
+      const options = { weekday: "short", year: "numeric", month: "short", day: "numeric" };
+      clockDate.textContent = now.toLocaleDateString("en-US", options).toUpperCase();
+      requestAnimationFrame(updateClock);
+    }
+    requestAnimationFrame(updateClock);
+
+    // --- Waveform Canvas Animation ---
+    const canvas = document.getElementById("waveCanvas");
+    const ctx = canvas.getContext("2d");
+    let wavePhase = 0;
+    let burstIntensity = 0;
+
+    function resizeCanvas() {
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    function renderWave() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const style = getComputedStyle(document.body);
+      const primary = style.getPropertyValue("--primary").trim() || "#00f3ff";
+
+      ctx.beginPath();
+      const cy = canvas.height / 2;
+      const amp = 14 + burstIntensity * 28;
+      const freq = 0.035;
+
+      for (let x = 0; x < canvas.width; x++) {
+        const y = cy + Math.sin(x * freq + wavePhase) * amp * Math.sin(x / canvas.width * Math.PI);
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+
+      ctx.strokeStyle = primary;
+      ctx.lineWidth = 2 + burstIntensity * 2;
+      ctx.shadowColor = primary;
+      ctx.shadowBlur = 10 + burstIntensity * 15;
+      ctx.stroke();
+
+      wavePhase += 0.05 + burstIntensity * 0.1;
+      burstIntensity = Math.max(0, burstIntensity - 0.02);
+
+      requestAnimationFrame(renderWave);
+    }
+    requestAnimationFrame(renderWave);
+
+    // --- Interactive State & Telemetry ---
+    let bursts = 0;
+    let baseTemp = 42.4;
+    const tempVal = document.getElementById("tempVal");
+    const pulseCount = document.getElementById("pulseCount");
+
+    document.getElementById("pulseTriggerBtn").addEventListener("click", () => {
+      bursts++;
+      burstIntensity = 1.0;
+      baseTemp = parseFloat((baseTemp + (Math.random() * 2.5 + 0.5)).toFixed(1));
+      pulseCount.textContent = String(bursts);
+      tempVal.textContent = `${baseTemp.toFixed(1)} °C`;
+
+      // Dispatch to Glansk Host through postMessage bridge
+      window.parent.postMessage({
+        type: "glansk:widget:variable:set",
+        variable: "glansk.pulse.temperature",
+        value: baseTemp,
+        timestamp: Date.now()
+      }, "*");
+    });
+
+    // Theme Switcher
+    const themes = ["cyan", "amber", "emerald", "violet"];
+    let themeIndex = 0;
+    document.getElementById("themeBtn").addEventListener("click", () => {
+      themeIndex = (themeIndex + 1) % themes.length;
+      const chosen = themes[themeIndex];
+      if (chosen === "cyan") document.body.removeAttribute("data-theme");
+      else document.body.setAttribute("data-theme", chosen);
+    });
+
+    // Changelog Modal
+    const modal = document.getElementById("changelogModal");
+    document.getElementById("changelogBtn").addEventListener("click", () => modal.classList.add("open"));
+    document.getElementById("closeModalBtn").addEventListener("click", () => modal.classList.remove("open"));
+
+    // Connect handshake listener
+    window.addEventListener("message", (event) => {
+      if (event.data?.type === "glansk:widget:connected") {
+        document.getElementById("syncStatus").textContent = "BOUND";
+      }
+    });
+  </script>
+</body>
+</html>

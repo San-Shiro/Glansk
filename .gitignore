@@ -23,6 +23,7 @@ data/
 *.log
 scratch/
 temp/
+.tmp/
 *.tmp
 
 # OS files
