@@ -447,7 +447,7 @@ export class PackageService {
     if (existing) {
       // 1. Signer Pinning: If an installed package was signed, any update must have the exact same signer fingerprint
       if (existing.signerFingerprint) {
-        const newFingerprint = validation.signerFingerprint || manifest.signer?.fingerprint;
+        const newFingerprint = validation.signerFingerprint;
         if (!newFingerprint || newFingerprint.toLowerCase() !== existing.signerFingerprint.toLowerCase()) {
           throw new SignerMismatchError(
             `Update rejected: package signer does not match installed developer origin for '${manifest.id}'. Installed: ${existing.signerFingerprint}, Provided: ${newFingerprint ?? "unsigned"}`
@@ -456,11 +456,11 @@ export class PackageService {
       }
 
       // 2. Anti-Rollback: Monotonic versionCode check
-      if (existing.versionCode !== undefined && manifest.versionCode !== undefined) {
-        if (manifest.versionCode < existing.versionCode) {
+      if (existing.versionCode !== undefined) {
+        if (manifest.versionCode === undefined || manifest.versionCode < existing.versionCode) {
           if (!allowDowngrade) {
             throw new PackageDowngradeError(
-              `Cannot downgrade package '${manifest.id}' from versionCode ${existing.versionCode} to ${manifest.versionCode}. Enable downgrade override to proceed.`
+              `Cannot downgrade package '${manifest.id}' from versionCode ${existing.versionCode} to ${manifest.versionCode ?? "unversioned"}. Enable downgrade override to proceed.`
             );
           }
         }

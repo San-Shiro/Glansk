@@ -118,11 +118,11 @@ export async function validateAndPack(
           if (!entry || typeof entry !== "object") {
             throw new Error(`Invalid manifest: changelog entry at index ${idx} must be an object`);
           }
-          if (!entry.version || typeof entry.version !== "string") {
+          if (!entry.version || typeof entry.version !== "string" || entry.version.trim().length === 0) {
             throw new Error(`Invalid manifest: changelog entry at index ${idx} must have a string 'version'`);
           }
-          if (entry.versionCode !== undefined && (!Number.isInteger(entry.versionCode) || entry.versionCode < 1)) {
-            throw new Error(`Invalid manifest: changelog entry at index ${idx} versionCode must be a positive integer`);
+          if (entry.versionCode !== undefined && (!Number.isInteger(entry.versionCode) || entry.versionCode < 1 || entry.versionCode > 2147483647)) {
+            throw new Error(`Invalid manifest: changelog entry at index ${idx} versionCode must be a positive 32-bit integer (1 to 2147483647)`);
           }
           if (entry.changes !== undefined && (!Array.isArray(entry.changes) || !entry.changes.every((c: any) => typeof c === "string"))) {
             throw new Error(`Invalid manifest: changelog entry at index ${idx} 'changes' must be an array of strings`);
