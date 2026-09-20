@@ -106,7 +106,7 @@ export default function Studio({ initialCanvasId, onExit, onNavigateCanvas, onSw
   const onDropWidget = useCallback((payload: string, x: number, y: number) => {
     const [packageId, widgetId] = payload.split("/");
     const item = CATALOG.find(c => c.packageId === packageId && c.widgetId === widgetId);
-    if (item) addWidget(item, Math.round(x - item.defaultGeometry.width / 2), Math.round(y - item.defaultGeometry.height / 2));
+    if (item) addWidget(item, Math.round(x), Math.round(y));
   }, [addWidget]);
 
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -262,6 +262,13 @@ export default function Studio({ initialCanvasId, onExit, onNavigateCanvas, onSw
       }
 
       d.groups.push(newGroup);
+
+      // Prune groups that are now empty (lost all members to the new group)
+      d.groups = d.groups.filter(g => {
+        if (g.id === grpId) return true; // keep the newly created group
+        return d.widgets.some(w => w.groupId === g.id);
+      });
+
       setSelectedGroupId(grpId);
       setSelectedWidgetIds([]);
     });
@@ -481,6 +488,14 @@ export default function Studio({ initialCanvasId, onExit, onNavigateCanvas, onSw
           grp.geometry.zIndex = position === "before" ? (targetGrp.geometry.zIndex || 0) + 1 : Math.max(0, (targetGrp.geometry.zIndex || 0) - 1);
         }
       }
+
+      // Normalize z-indices to ensure distinct, monotonic values (prevents collisions at 0)
+      const allItems: Array<{ geometry: { zIndex: number } }> = [
+        ...d.widgets,
+        ...(d.groups || []),
+      ];
+      allItems.sort((a, b) => (a.geometry.zIndex ?? 0) - (b.geometry.zIndex ?? 0));
+      allItems.forEach((item, i) => { item.geometry.zIndex = i + 1; });
     });
   }, [edit]);
 
@@ -620,8 +635,19 @@ export default function Studio({ initialCanvasId, onExit, onNavigateCanvas, onSw
               for (const id of selectedWidgetIds) {
                 const w = d.widgets.find((x) => x.id === id);
                 if (w) {
-                  w.geometry.x += dx;
-                  w.geometry.y += dy;
+                  if (w.groupId) {
+                    const parentGrp = d.groups?.find((g) => g.id === w.groupId);
+                    if (parentGrp) {
+                      w.geometry.x = clamp(w.geometry.x + dx, 0, Math.max(0, parentGrp.geometry.width - w.geometry.width));
+                      w.geometry.y = clamp(w.geometry.y + dy, 0, Math.max(0, parentGrp.geometry.height - w.geometry.height));
+                    } else {
+                      w.geometry.x = clamp(w.geometry.x + dx, 0, d.logicalSize.width - w.geometry.width);
+                      w.geometry.y = clamp(w.geometry.y + dy, 0, d.logicalSize.height - w.geometry.height);
+                    }
+                  } else {
+                    w.geometry.x = clamp(w.geometry.x + dx, 0, d.logicalSize.width - w.geometry.width);
+                    w.geometry.y = clamp(w.geometry.y + dy, 0, d.logicalSize.height - w.geometry.height);
+                  }
                 }
               }
             });
@@ -826,6 +852,7 @@ export default function Studio({ initialCanvasId, onExit, onNavigateCanvas, onSw
             onAlignSelected={alignSelected}
             onDistributeSelected={distributeSelected}
             onDeleteSelected={deleteSelected}
+            onToggleDisabled={toggleWidgetDisabled}
             onReorder={reorder}
             onCollapse={() => setInspectorSuppressed(true)}
           />

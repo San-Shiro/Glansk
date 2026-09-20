@@ -75,13 +75,17 @@ export default function StyleTab({
     });
   };
 
-  // Center alignment helpers
+  // Center alignment helpers (group-aware)
   const centerH = () => {
-    const newX = Math.round((doc.logicalSize.width - g.width) / 2);
+    const parentGroup = widget.groupId ? doc.groups?.find(grp => grp.id === widget.groupId) : null;
+    const containerW = parentGroup ? parentGroup.geometry.width : doc.logicalSize.width;
+    const newX = Math.round((containerW - g.width) / 2);
     updateGeometry({ x: Math.max(0, newX) });
   };
   const centerV = () => {
-    const newY = Math.round((doc.logicalSize.height - g.height) / 2);
+    const parentGroup = widget.groupId ? doc.groups?.find(grp => grp.id === widget.groupId) : null;
+    const containerH = parentGroup ? parentGroup.geometry.height : doc.logicalSize.height;
+    const newY = Math.round((containerH - g.height) / 2);
     updateGeometry({ y: Math.max(0, newY) });
   };
 

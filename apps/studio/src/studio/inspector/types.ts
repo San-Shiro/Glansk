@@ -30,6 +30,7 @@ export interface InspectorProps {
   onAlignSelected?: (dir: "left" | "center" | "right" | "top" | "middle" | "bottom") => void;
   onDistributeSelected?: (axis: "horizontal" | "vertical") => void;
   onDeleteSelected?: () => void;
+  onToggleDisabled?: (id: string) => void;
   onCollapse?: () => void;
 }
 

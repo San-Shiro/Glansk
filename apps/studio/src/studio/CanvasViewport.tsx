@@ -407,12 +407,19 @@ export default function CanvasViewport({
 
       const isShift = e.shiftKey;
       const initialSelection = isShift ? [...activeWidgetIds] : [];
+      let hasMoved = false;
 
       setMarquee({ startX, startY, currentX: startX, currentY: startY });
 
       const onMove = (ev: PointerEvent) => {
         const curX = (ev.clientX - rect.left) / zoom;
         const curY = (ev.clientY - rect.top) / zoom;
+
+        // Track if pointer moved beyond a 3px dead-zone
+        if (!hasMoved && (Math.abs(curX - startX) > 3 || Math.abs(curY - startY) > 3)) {
+          hasMoved = true;
+        }
+
         setMarquee({ startX, startY, currentX: curX, currentY: curY });
 
         const minX = Math.min(startX, curX);
@@ -436,12 +443,19 @@ export default function CanvasViewport({
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
         setMarquee(null);
+
+        // Click on empty canvas (no drag movement) → deselect everything
+        if (!hasMoved && !isShift) {
+          onSelect(null);
+          setEffectiveSelectedWidgets([]);
+          onSelectGroup(null);
+        }
       };
 
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
     },
-    [panMode, zoom, activeWidgetIds, doc.widgets, getAbsoluteGeometry, setEffectiveSelectedWidgets, onSelectGroup]
+    [panMode, zoom, activeWidgetIds, doc.widgets, getAbsoluteGeometry, setEffectiveSelectedWidgets, onSelectGroup, onSelect]
   );
 
   // Context menu builder
@@ -887,6 +901,15 @@ export default function CanvasViewport({
         let width = 320;
         let height = 240;
         let title = "Widget";
+        try {
+          const dimRaw = e.dataTransfer.getData("text/glansk-dim");
+          if (dimRaw) {
+            const dim = JSON.parse(dimRaw);
+            if (dim.width) width = dim.width;
+            if (dim.height) height = dim.height;
+            if (dim.title) title = dim.title;
+          }
+        } catch {}
 
         const snapX = snapToGrid ? Math.round((rawX - width / 2) / 8) * 8 : Math.round(rawX - width / 2);
         const snapY = snapToGrid ? Math.round((rawY - height / 2) / 8) * 8 : Math.round(rawY - height / 2);
@@ -1130,195 +1153,209 @@ export default function CanvasViewport({
             );
           })}
 
-          {/* 1. Floating Selection Context Bar (Single Item) */}
-          {selectionBounds && !interactiveMode && activeWidgetIds.length <= 1 && (
-            <div
-              className="absolute z-50 flex items-center gap-1 p-1 rounded-lg border shadow-xl animate-fade-in pointer-events-auto"
-              style={{
-                left: Math.max(10, selectionBounds.x + selectionBounds.width / 2),
-                top: selectionBounds.y < 50
-                  ? selectionBounds.y + selectionBounds.height + 12
-                  : selectionBounds.y - 44,
-                transform: "translateX(-50%)",
-                background: "var(--panel)",
-                borderColor: "var(--line)",
-                backdropFilter: "blur(8px)",
-              }}
-            >
-              {selectedWidget && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => onGroupSelection?.()}
-                    className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
-                    title="Group Widget (Ctrl+G)"
-                  >
-                    <FolderPlus size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDuplicate?.(selectedWidget.id)}
-                    className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
-                    title="Duplicate (Ctrl+D)"
-                  >
-                    <Copy size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onReorder?.(selectedWidget.id, "front")}
-                    className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
-                    title="Bring to Front"
-                  >
-                    <BringToFront size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onReorder?.(selectedWidget.id, "back")}
-                    className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
-                    title="Send to Back"
-                  >
-                    <SendToBack size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onToggleVisibility?.(selectedWidget.id)}
-                    className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
-                    title="Toggle Visibility"
-                  >
-                    <Eye size={13} />
-                  </button>
-                  <div className="h-3 w-px bg-[var(--line)] mx-0.5" />
-                  <button
-                    type="button"
-                    onClick={() => onDelete?.(selectedWidget.id)}
-                    className="p-1.5 rounded hover:bg-[var(--danger-soft)] text-[var(--danger)] transition-colors"
-                    title="Delete (Del)"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </>
-              )}
-
-              {selectedGroup && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => onUngroup?.(selectedGroup.id)}
-                    className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
-                    title="Ungroup (Ctrl+Shift+G)"
-                  >
-                    <FolderMinus size={13} />
-                  </button>
-                  <div className="h-3 w-px bg-[var(--line)] mx-0.5" />
-                  <button
-                    type="button"
-                    onClick={() => onDelete?.(selectedGroup.id)}
-                    className="p-1.5 rounded hover:bg-[var(--danger-soft)] text-[var(--danger)] transition-colors"
-                    title="Delete Group"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* 2. Floating Multi-Selection Context Bar */}
-          {multiSelectionBounds && !interactiveMode && (
-            <div
-              className="absolute z-50 flex items-center gap-1 p-1 rounded-lg border shadow-xl animate-fade-in pointer-events-auto"
-              style={{
-                left: Math.max(10, multiSelectionBounds.x + multiSelectionBounds.width / 2),
-                top: multiSelectionBounds.y < 50
-                  ? multiSelectionBounds.y + multiSelectionBounds.height + 12
-                  : multiSelectionBounds.y - 44,
-                transform: "translateX(-50%)",
-                background: "var(--panel)",
-                borderColor: "var(--line)",
-                backdropFilter: "blur(8px)",
-              }}
-            >
-              <div className="px-2 text-[11px] font-semibold text-[var(--ink-2)] border-r border-[var(--line)]">
-                {activeWidgetIds.length} items
-              </div>
-              <button
-                type="button"
-                onClick={() => onGroupSelection?.()}
-                className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors flex items-center gap-1 text-[11px]"
-                title="Group Selection (Ctrl+G)"
-              >
-                <FolderPlus size={13} />
-                <span>Group</span>
-              </button>
-              <div className="h-3 w-px bg-[var(--line)] mx-0.5" />
-              <button
-                type="button"
-                onClick={() => onAlignSelected?.("left")}
-                className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
-                title="Align Left"
-              >
-                <AlignStartHorizontal size={13} />
-              </button>
-              <button
-                type="button"
-                onClick={() => onAlignSelected?.("center")}
-                className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
-                title="Align Center"
-              >
-                <AlignCenterHorizontal size={13} />
-              </button>
-              <button
-                type="button"
-                onClick={() => onAlignSelected?.("right")}
-                className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
-                title="Align Right"
-              >
-                <AlignEndHorizontal size={13} />
-              </button>
-              <button
-                type="button"
-                onClick={() => onAlignSelected?.("top")}
-                className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
-                title="Align Top"
-              >
-                <AlignStartVertical size={13} />
-              </button>
-              <button
-                type="button"
-                onClick={() => onAlignSelected?.("middle")}
-                className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
-                title="Align Middle"
-              >
-                <AlignCenterVertical size={13} />
-              </button>
-              <button
-                type="button"
-                onClick={() => onAlignSelected?.("bottom")}
-                className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
-                title="Align Bottom"
-              >
-                <AlignEndVertical size={13} />
-              </button>
-              <div className="h-3 w-px bg-[var(--line)] mx-0.5" />
-              <button
-                type="button"
-                onClick={() => onDuplicateSelected?.()}
-                className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
-                title="Duplicate All (Ctrl+D)"
-              >
-                <Copy size={13} />
-              </button>
-              <button
-                type="button"
-                onClick={() => onDeleteSelected?.()}
-                className="p-1.5 rounded hover:bg-[var(--danger-soft)] text-[var(--danger)] transition-colors"
-                title="Delete All (Del)"
-              >
-                <Trash2 size={13} />
-              </button>
-            </div>
-          )}
         </div>
+      </div>
+
+      {/* Floating Selection Bars — rendered outside artboard to avoid overflow:hidden clipping */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          left: "50%",
+          top: "50%",
+          width: LW * zoom,
+          height: LH * zoom,
+          transform: "translate(-50%, -50%)",
+          zIndex: 60,
+        }}
+      >
+        {/* 1. Floating Selection Context Bar (Single Item) */}
+        {selectionBounds && !interactiveMode && activeWidgetIds.length <= 1 && (
+          <div
+            className="absolute z-50 flex items-center gap-1 p-1 rounded-lg border shadow-xl animate-fade-in pointer-events-auto"
+            style={{
+              left: Math.max(10, selectionBounds.x + selectionBounds.width / 2),
+              top: selectionBounds.y < 50
+                ? selectionBounds.y + selectionBounds.height + 12
+                : selectionBounds.y - 44,
+              transform: "translateX(-50%)",
+              background: "var(--panel)",
+              borderColor: "var(--line)",
+              backdropFilter: "blur(8px)",
+            }}
+          >
+            {selectedWidget && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onGroupSelection?.()}
+                  className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
+                  title="Group Widget (Ctrl+G)"
+                >
+                  <FolderPlus size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDuplicate?.(selectedWidget.id)}
+                  className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
+                  title="Duplicate (Ctrl+D)"
+                >
+                  <Copy size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onReorder?.(selectedWidget.id, "front")}
+                  className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
+                  title="Bring to Front"
+                >
+                  <BringToFront size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onReorder?.(selectedWidget.id, "back")}
+                  className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
+                  title="Send to Back"
+                >
+                  <SendToBack size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onToggleVisibility?.(selectedWidget.id)}
+                  className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
+                  title="Toggle Visibility"
+                >
+                  <Eye size={13} />
+                </button>
+                <div className="h-3 w-px bg-[var(--line)] mx-0.5" />
+                <button
+                  type="button"
+                  onClick={() => onDelete?.(selectedWidget.id)}
+                  className="p-1.5 rounded hover:bg-[var(--danger-soft)] text-[var(--danger)] transition-colors"
+                  title="Delete (Del)"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </>
+            )}
+
+            {selectedGroup && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onUngroup?.(selectedGroup.id)}
+                  className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
+                  title="Ungroup (Ctrl+Shift+G)"
+                >
+                  <FolderMinus size={13} />
+                </button>
+                <div className="h-3 w-px bg-[var(--line)] mx-0.5" />
+                <button
+                  type="button"
+                  onClick={() => onDelete?.(selectedGroup.id)}
+                  className="p-1.5 rounded hover:bg-[var(--danger-soft)] text-[var(--danger)] transition-colors"
+                  title="Delete Group"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* 2. Floating Multi-Selection Context Bar */}
+        {multiSelectionBounds && !interactiveMode && (
+          <div
+            className="absolute z-50 flex items-center gap-1 p-1 rounded-lg border shadow-xl animate-fade-in pointer-events-auto"
+            style={{
+              left: Math.max(10, multiSelectionBounds.x + multiSelectionBounds.width / 2),
+              top: multiSelectionBounds.y < 50
+                ? multiSelectionBounds.y + multiSelectionBounds.height + 12
+                : multiSelectionBounds.y - 44,
+              transform: "translateX(-50%)",
+              background: "var(--panel)",
+              borderColor: "var(--line)",
+              backdropFilter: "blur(8px)",
+            }}
+          >
+            <div className="px-2 text-[11px] font-semibold text-[var(--ink-2)] border-r border-[var(--line)]">
+              {activeWidgetIds.length} items
+            </div>
+            <button
+              type="button"
+              onClick={() => onGroupSelection?.()}
+              className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors flex items-center gap-1 text-[11px]"
+              title="Group Selection (Ctrl+G)"
+            >
+              <FolderPlus size={13} />
+              <span>Group</span>
+            </button>
+            <div className="h-3 w-px bg-[var(--line)] mx-0.5" />
+            <button
+              type="button"
+              onClick={() => onAlignSelected?.("left")}
+              className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
+              title="Align Left"
+            >
+              <AlignStartHorizontal size={13} />
+            </button>
+            <button
+              type="button"
+              onClick={() => onAlignSelected?.("center")}
+              className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
+              title="Align Center"
+            >
+              <AlignCenterHorizontal size={13} />
+            </button>
+            <button
+              type="button"
+              onClick={() => onAlignSelected?.("right")}
+              className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
+              title="Align Right"
+            >
+              <AlignEndHorizontal size={13} />
+            </button>
+            <button
+              type="button"
+              onClick={() => onAlignSelected?.("top")}
+              className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
+              title="Align Top"
+            >
+              <AlignStartVertical size={13} />
+            </button>
+            <button
+              type="button"
+              onClick={() => onAlignSelected?.("middle")}
+              className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
+              title="Align Middle"
+            >
+              <AlignCenterVertical size={13} />
+            </button>
+            <button
+              type="button"
+              onClick={() => onAlignSelected?.("bottom")}
+              className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
+              title="Align Bottom"
+            >
+              <AlignEndVertical size={13} />
+            </button>
+            <div className="h-3 w-px bg-[var(--line)] mx-0.5" />
+            <button
+              type="button"
+              onClick={() => onDuplicateSelected?.()}
+              className="p-1.5 rounded hover:bg-[var(--panel-2)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
+              title="Duplicate All (Ctrl+D)"
+            >
+              <Copy size={13} />
+            </button>
+            <button
+              type="button"
+              onClick={() => onDeleteSelected?.()}
+              className="p-1.5 rounded hover:bg-[var(--danger-soft)] text-[var(--danger)] transition-colors"
+              title="Delete All (Del)"
+            >
+              <Trash2 size={13} />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 3. Floating Bottom Canvas Dock */}

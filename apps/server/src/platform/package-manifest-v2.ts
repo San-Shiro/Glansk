@@ -5,6 +5,7 @@
  */
 
 import type { WidgetDesignPreset } from "./design-preset-schema";
+import type { PackageSigner } from "./package-validator";
 
 export type PackageKind = "widget" | "emitter" | "composite";
 
@@ -67,6 +68,7 @@ export interface PackageManifestV2 {
   readonly manifestVersion: 2;
   readonly id: string;
   readonly version: string;
+  readonly versionCode?: number | undefined;
   readonly name: string;
   readonly kind: PackageKind;
   readonly description?: string | undefined;
@@ -99,6 +101,7 @@ export interface PackageManifestV2 {
   readonly files: Readonly<Record<string, string>>; // relative path -> SHA-256 hex
   readonly signature?: string | undefined;
   readonly keyId?: string | undefined;
+  readonly signer?: PackageSigner | undefined;
 }
 
 /**
@@ -116,6 +119,7 @@ export function normalizeManifestToV2(raw: Record<string, any>): PackageManifest
       manifestVersion: 2,
       id: String(raw.id || ""),
       version: String(raw.version || "1.0.0"),
+      ...(typeof raw.versionCode === "number" ? { versionCode: raw.versionCode } : {}),
       name: String(raw.name || raw.id || "Untitled Package"),
       kind: (raw.kind as PackageKind) || "widget",
       ...(raw.description !== undefined ? { description: String(raw.description) } : {}),
@@ -156,6 +160,7 @@ export function normalizeManifestToV2(raw: Record<string, any>): PackageManifest
       files: raw.files || {},
       ...(raw.signature !== undefined ? { signature: raw.signature } : {}),
       ...(raw.keyId !== undefined ? { keyId: raw.keyId } : {}),
+      ...(raw.signer !== undefined ? { signer: raw.signer } : {}),
     };
   }
 

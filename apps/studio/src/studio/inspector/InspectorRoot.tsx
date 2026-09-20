@@ -316,12 +316,7 @@ export default function InspectorRoot(p: InspectorProps) {
 
           <button
             type="button"
-            onClick={() =>
-              p.onUpdateConfig(widget!.id, {
-                ...cfg,
-                disabled: isEnabled,
-              })
-            }
+            onClick={() => p.onToggleDisabled?.(widget!.id)}
             className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
               isEnabled
                 ? "bg-[var(--ok-soft)] text-[var(--ok)]"

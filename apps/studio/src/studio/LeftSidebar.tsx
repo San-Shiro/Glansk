@@ -99,7 +99,7 @@ export default function LeftSidebar({
       id: "layers",
       label: "Layers & Hierarchy",
       icon: <Layers size={17} />,
-      shortcut: "L",
+      shortcut: "Alt+1",
       render: () =>
         doc ? (
           <HierarchyTree
@@ -124,14 +124,14 @@ export default function LeftSidebar({
       id: "blocks",
       label: "Widget Blocks Catalog",
       icon: <LayoutGrid size={17} />,
-      shortcut: "W",
+      shortcut: "Alt+2",
       render: () => <PaletteCatalog onAdd={onAdd} />,
     },
     {
       id: "canvas",
       label: "Canvas Settings & Themes",
       icon: <Palette size={17} />,
-      shortcut: "C",
+      shortcut: "Alt+3",
       render: () =>
         doc && onUpdateCanvas ? (
           <CanvasPanel doc={doc} onUpdateCanvas={onUpdateCanvas} />
@@ -141,7 +141,7 @@ export default function LeftSidebar({
       id: "variables",
       label: "Canvas Variables",
       icon: <Sliders size={17} />,
-      shortcut: "V",
+      shortcut: "Alt+4",
       render: () =>
         doc ? (
           <VariablesDrawer
@@ -157,24 +157,28 @@ export default function LeftSidebar({
       id: "events",
       label: "Realtime Event Bus",
       icon: <Zap size={17} />,
-      shortcut: "E",
+      shortcut: "Alt+5",
       render: () => (
         <SignalsDrawer open={true} inline={true} onClose={() => setCollapsed(true)} />
       ),
     },
   ];
 
-  // Dynamic keyboard shortcut map based on registered tabs
+  // Dynamic keyboard shortcut map based on registered tabs (Alt+digit)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) || target.isContentEditable) {
         return;
       }
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (!e.altKey || e.ctrlKey || e.metaKey) return;
 
-      const key = e.key.toLowerCase();
-      const matched = tabs.find((t) => t.shortcut.toLowerCase() === key);
+      const key = e.key;
+      const matched = tabs.find((t) => {
+        const parts = t.shortcut.split("+");
+        const shortcutKey = parts[parts.length - 1];
+        return shortcutKey === key;
+      });
       if (matched) {
         e.preventDefault();
         setActiveTab(matched.id);
